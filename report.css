@@ -1,0 +1,15 @@
+body {
+	margin: 0;
+	padding: 0;
+	font-family: Calibri, sans-serif;
+}
+
+ul {
+	list-style: none;
+}
+
+.question {
+	background-color: #ddd;
+	padding: 10px 10px 0;
+	margin-right: 10px;
+}

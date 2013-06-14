@@ -1,0 +1,78 @@
+<html>
+	<head>
+		<title>Stack digest - monitor stackoverflow questions</title>
+ 		<link href="css/bootstrap.css" rel="stylesheet">
+ 		<link href="css/main.css" rel="stylesheet">
+ 		<script type='text/javascript' src='jquery-1.8.2.min.js'></script>
+		<script type='text/javascript' src='knockout-2.1.0.js'></script>
+		<script type='text/javascript' src='js/bootstrap.min.js'></script>		
+		<script type='text/javascript' src='js3rdparty/sockjs-0.2.1.min.js'></script>	
+		<script type='text/javascript' src='js/vertxbus.js'></script>
+		<script type='text/javascript' src='js/client_app.js'></script>
+		<script type='text/javascript' src='https://api.stackexchange.com/js/2.0/all.js'></script>
+	</head>
+	<body>
+		<div class="container">
+NvDEOj0ERa7SFjzQfdtI5A))
+
+				<button id="login" class="btn">Login</button>
+
+            <button id="testit" class="btn">Test</button>
+
+
+
+            <a href="https://stackexchange.com/oauth?client_id=1265&redirect_uri=http://stackdigest.cloudfoundry.com/rec.html">Authorize</a>
+		</div>
+	</body>
+
+	<script type='text/javascript'>
+	SE.init({
+	    clientId: 1265,
+	    key: '3UWhhUSOG6WL)cFFLBecpw((',
+	    channelUrl: 'http://stackdigest.cloudfoundry.com/blank.html',
+	    complete: function (data) { 
+console.log('---data below---');
+		console.log(data);
+	    }
+	});
+
+
+        var eb = new vertx.EventBus(window.location.protocol + '//' + window.location.hostname + ':' + window.location.port + '/eventbus');
+
+        $(function(){
+		$('#login').bind('click', function() {
+			console.log('login requested');
+			SE.authenticate({
+			    success: function(data) {
+				console.log('auth successful');
+				console.log(data);
+			    },
+			    error: function(data) {
+				console.log('error while authing');
+				console.log(data);
+			    },
+			    scope: [],
+			    networkUsers: false
+			});
+
+		});
+
+        eb.onopen = function() {
+            console.log('eventbus inited');
+
+        };
+
+        $('#testit').bind('click', function() {
+			console.log('test requested');
+            eb.send("digestService", {action: 'test'}, function(reply) {
+                console.log('received reply ');
+                console.log(reply);
+            });
+
+		});
+
+
+	});
+	</script>
+
+</html>

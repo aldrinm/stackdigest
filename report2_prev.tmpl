@@ -1,0 +1,97 @@
+<html>
+  <head>
+  	<style type="text/css">
+	  	body {
+			margin: 0;
+			padding: 0;
+			font-family: Calibri, sans-serif;
+		}
+
+		ul {
+			list-style: none;
+		}
+
+		.question {
+			padding: 10px 10px 0;
+			margin-right: 10px;
+		}
+		
+		a.title {
+			font-size: 1.7em;
+		}
+
+		.answers li {
+			margin: 66px 0;
+			border: 0px;
+			width: 97%;
+			padding: 16px;
+		}
+
+		.answers-title {
+			font-weight: bold;
+			font-size: 1.7em;
+		}
+		.author {
+			font-weight: bold;
+			font-style: italic;
+			font-size: 1.2em;
+		}
+
+		li.updated {
+            background-color: #FFD700;
+		}
+
+        .accepted {
+            color: #006400;
+            font-size: 0.9em;
+            font-style: italic;
+            font-weight: bold;
+        }
+	</style>
+  </head>
+  <body>
+
+  	<ul>
+	<%
+	    questions.each { question ->
+	        def q = question.question
+	        def completeAnswers = question.completeAnswers
+            def newAnswersIds = newAnswersLookupIds[q.question_id]
+	%>
+
+	  <li>
+	  	<div class="question">
+	 		<a class="title" href='${q.link}'>${q.title}</a> - ${q.owner.display_name}
+	 		${q.body}
+		 </div>
+
+	 <p class="answers-title">Answers</p>
+	 <ul class="answers">
+
+	 <%
+	 	completeAnswers?.each { answer->
+	 %>
+	 	<li class=${answer.answer_id in newAnswersIds?'updated':''}>
+            <%
+                if (answer.is_accepted) {
+            %>
+                <div class="accepted">Accepted Answer</div>
+            <%
+                }
+            %>
+	 		<div class="author">${answer.owner.display_name}</div>
+	 		<p>${answer.body}</p>
+	 	</li>
+	 <%
+
+	 	}
+	 %>
+	 </ul>	
+	 <%
+	}%>
+	  </li>
+	</ul>
+  </body>
+
+
+</html>

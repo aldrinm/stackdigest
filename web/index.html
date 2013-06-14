@@ -1,0 +1,300 @@
+<html>
+	<head>
+		<title>Stack digest - monitor stackoverflow questions</title>
+ 		<link href="css/bootstrap.css" rel="stylesheet">
+ 		<link href="css/main.css" rel="stylesheet">
+ 		<script type='text/javascript' src='jquery-1.8.2.min.js'></script>
+		<script type='text/javascript' src='knockout-2.1.0.js'></script>
+		<script type='text/javascript' src='js/bootstrap.min.js'></script>		
+		<script type='text/javascript' src='js3rdparty/sockjs-0.2.1.min.js'></script>	
+		<script type='text/javascript' src='js/vertxbus.js'></script>
+		<script type='text/javascript' src='js/client_app.js'></script>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Stack digest</h1>
+			<form id="frmQuestion" class="form-search" data-bind="submit: addQuestion">
+				<fieldset>
+				    <input id="search-url" type="text" size="300" class="input-xxlarge" data-bind="value: newQuestionURL" placeholder="Add the question url to start monitoring"/>
+				    <button type="submit" class="btn btn-primary">Save</button>
+
+				</fieldset>
+			</form>
+
+			<p>
+				<a href="#import" role="button" class="btn" data-toggle="modal" data-target="#favorites">Import favorites</a>
+			</p>
+			<!-- Modal -->
+			<div id="favorites" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+			  <div class="modal-header">
+			    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+			    <h3 id="myModalLabel">Import favorites</h3>
+			  </div>
+			  <div class="modal-body">
+			  	<p>
+			  	<form id="frmFav" class="form-inline" data-bind="submit: importFavorites">
+			  		<label>Enter your stackoverflow user id</label>
+					<input type="text" name="userid" class="input-medium" placeholder="User id">
+					<button id="btnImport" type="submit" class="btn" data-loading-text="Importing favorites...">Import</button>
+					<div class="importFeedback"></div>
+				</form>
+				</p>
+			  </div>
+			  <div class="modal-footer">
+			    <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
+			  </div>
+			</div>
+
+			<small class="text-info pull-right" data-bind='visible: countQuestions() > 0'>
+				Monitoring <span data-bind='text: countQuestions'></span> question<span data-bind='visible: countQuestions() > 1'>s</span>
+			</small>
+
+			<table class="table table-hover" data-bind="foreach: questions, visible: questions().length > 0">
+				<tbody>
+				    <tr data-bind="css: { error: error }">
+				        <td> 
+				        	<span data-bind="text: questionTitle"></span>
+				            <span data-bind="text: url, visible: !questionTitle() || questionTitle().length<=0"></span>
+				            <span data-bind="text: errorMessage, visible: error" class="label label-important"></span>
+				        </td>
+				        <td>
+				        	<a href="#" class="btn btn-danger" data-bind="click: $parent.removeQuestion, visible: eyeD() && eyeD().length>0">Delete</a>
+				        </td>
+				    </tr>    
+			    </tbody> 
+			</table>
+
+			<h6 data-bind='visible: countQuestions() > questions().length'>Remaining entries are not shown. Search functionality coming soon.</h6>
+
+		</div>
+
+		<div class="importFeedback" id="mainImportFeedback"></div>
+<script type='text/javascript'>
+ 	(function () { // Wrap in function to prevent accidental globals
+                
+//Viewmodel
+function Question(data) {
+	this.eyeD = ko.observable(data.eyeD);
+    this.url = ko.observable(data.url);
+    this.questionId = data.questionId;
+    this.questionTitle = ko.observable(data.title);
+    this.error = ko.observable(false);
+    this.errorMessage = ko.observable();
+}
+
+function QuestionsViewModel() {
+    // Data
+    var self = this;
+    self.questions = ko.observableArray([]);
+    self.countQuestions = ko.observable();
+    self.newQuestionURL = ko.observable();
+	
+	var eb = new vertx.EventBus(window.location.protocol + '//' + window.location.hostname + ':' + window.location.port + '/eventbus');
+    // Operations
+    self.addQuestion = function() {
+    	//console.log(self.newQuestionURL());
+    	if (self.newQuestionURL()) {
+    		var tmpTokens = self.newQuestionURL().split('/');
+    		if (tmpTokens.length>=5) {
+    			var qId = tmpTokens[4];
+	    		var nQ = new Question({questionId:qId, url: self.newQuestionURL()});
+	    		self.questions.unshift(nQ);
+				eb.send("digestService", {action: 'save', payload: {url: self.newQuestionURL()}}, function(reply) {
+					//console.log(reply);
+			      	if (reply.status === 'ok' || reply.status==='pending') {
+						//ignore
+			      	} else if (reply.status == 'error') {
+			      		//find corresponding question and update it
+			      		//console.log('GOT ERROR');
+			      		//console.log(self.questions());
+			      		$.each(self.questions(), function(i, q) {
+			      			//console.log(i);
+			      			//console.log('chking '+q.questionId+' and '+reply.payload.questionId);
+			      			if (q.questionId == reply.payload.questionId) {
+				      			q.error(true);
+				      			//q.errorMessage = reply.payload.errorMessage;	
+				      		} 	
+			      		});
+			      	}
+				});
+		        self.newQuestionURL("");
+    		}
+    		else {
+    			showMessage('alert-error', '<strong>Cannot interpret the url '+self.newQuestionURL() + '.</strong> (example url: http://stackoverflow.com/questions/123)');
+    		}
+
+    	}
+
+
+    };
+
+    self.removeQuestion = function(q) { 
+    	console.log('q.eyeD() '+q.eyeD());
+	    var condemnedQuestion = {
+	      action: "delete",
+	      collection: "questions",
+	      matcher: {
+	        _id: { '$oid': q.eyeD()}
+	      }
+	    };
+
+        eb.send('vertx.mongopersistor', condemnedQuestion, function(reply) {
+	      if (reply.status === 'ok') {
+	      	console.log(reply);
+			self.questions.remove(q);
+			self.countQuestions(self.countQuestions()-1);
+	        // self.orderSubmitted(true);
+	        // Timeout the order confirmation box after 2 seconds
+	        // window.setTimeout(function() { that.orderSubmitted(false); }, 2000);
+	      } else {
+	        //console.error('Failed to remove question');
+	      }
+	    });
+	    	
+    	
+    };
+
+    self.importFavorites = function(frm) {
+    	console.log($(frm.userid).val());
+    	$('#btnImport').button('loading');
+		eb.send("digestService", {action: 'import', payload: {userid: $(frm.userid).val(), page:1}}, function(reply) {
+			showImportFeedback('alert-info', 'Importing favorites...');	
+		});
+    }
+    // Load initial state from server, convert it to Task instances, then populate self.tasks
+    /*
+    $.getJSON("/questions", function(allData) {
+        var mappedQuestions = $.map(allData, function(q) { return new Question(q) });
+        self.quesetions(mappedQuestions);
+    });    
+	*/
+
+var sink = function(message) {
+  console.log('I received a message :: ');
+  console.log(message);
+  console.log('---EOM---');
+  switch(message.action) {
+  	case 'updateQuestion':
+  		updateQuestion(message);
+  		break;
+  	
+  	case 'import':
+  		showImportFeedback('alert-info', 'Importing favorites...DONE!');
+  		initStuff();
+  		$('#btnImport').button('reset');
+  		break;
+
+  }
+}
+
+function updateQuestion(questionDetails) {
+	//console.log('in updateQuestion');
+	//console.log(questionDetails);
+	if (questionDetails.status == 'ok') {
+  		$.each(self.questions(), function(i, q) {
+      		if (q.questionId == questionDetails.payload.questionId) {
+      			//console.log('got it');
+      			q.questionTitle(questionDetails.payload.title);	
+      			if (questionDetails.payload._id) q.eyeD(questionDetails.payload._id);
+      			return false;
+      		} 	
+  		});
+
+	} else if (questionDetails.status == 'error') {
+		//console.log('here 1');
+		//console.log(self.questions());
+  		$.each(self.questions(), function(i, q) {
+      		if (q.questionId == questionDetails.payload.questionId) {
+      			//console.log('here 2');
+      			q.error(true);
+      			//console.log(questionDetails.payload.errorMessage);
+      			q.errorMessage(questionDetails.payload.errorMessage);	
+      			return false;
+      		} 	
+  		});
+
+	}
+	
+
+}
+
+ eb.onopen = function() {
+	eb.registerHandler('frontend', sink);
+
+	initStuff();
+
+};
+
+function initStuff() {
+    eb.send('vertx.mongopersistor', {action: 'find', collection: 'questions', matcher: {}, limit: 30 },
+      function(reply) {
+        if (reply.status === 'ok') {
+         var questionArray = [];
+         for (var i = 0; i < reply.results.length; i++) {
+         	//console.log(reply.results[i]);
+           questionArray[i] = new Question({eyeD:reply.results[i]._id.$oid, title: reply.results[i].title, questionId: reply.results[i].questionId, url: reply.results[i].url});
+         }
+         self.questions(questionArray);
+        } else {
+          //console.error('Failed to retrieve questions: ' + reply.message);
+        }
+      });
+
+
+    eb.send('vertx.mongopersistor', {action: 'count', collection: 'questions', matcher: {} },
+      function(reply) {
+      	console.log('COUNT==LOG');
+      	console.log(reply);
+      	console.log(reply.count);
+        if (reply.status === 'ok') {
+         self.countQuestions(reply.count);
+        } else {
+          //console.error('Failed to retrieve count of questions: ' + reply.message);
+        }
+      });
+
+}
+
+
+eb.onclose = function() {
+	//console.log('ON close');
+	eb = null;
+};
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+ko.applyBindings(new QuestionsViewModel());
+
+
+    })();
+
+
+function showMessage(messageType, message) {
+	var alrt = '<div class="alert '+messageType+'"><button type="button" class="close" data-dismiss="alert">x</button>'+message+'</div>';
+	$('#frmQuestion').prepend(alrt);
+}
+
+function showImportFeedback(messageType, message) {
+	var alrt = '<div class="alert '+messageType+'"><button type="button" class="close" data-dismiss="alert">x</button>'+message+'</div>';
+	$('.importFeedback').html(alrt);
+}
+
+
+
+        </script>
+
+
+ 
+	</body>
+</html>

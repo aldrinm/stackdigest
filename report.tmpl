@@ -1,0 +1,73 @@
+<html>
+  <head>
+  	<style type="text/css">
+	  	body {
+			margin: 0;
+			padding: 0;
+			font-family: Calibri, sans-serif;
+		}
+
+		ul {
+			list-style: none;
+		}
+
+		.question {
+			padding: 10px 10px 0;
+			margin-right: 10px;
+		}
+		
+		a.title {
+			font-size: 1.7em;
+		}
+
+		.answers li {
+			margin: 66px 0;
+			border-bottom: 1px dotted;
+			width: 97%;
+		}
+
+		.answers-title {
+			font-weight: bold;
+			font-size: 1.7em;
+		}
+		.author {
+			font-weight: bold;
+			font-style: italic;
+			font-size: 1.2em;
+		}
+
+	</style>
+  </head>
+  <body>
+
+  	<ul>
+	<% questions.each{ question-> %>
+	  <li>	
+	  	<div class="question">
+	 		<a class="title" href='${question.question.link}'>${question.title}</a> - ${question.question.owner.display_name}
+	 		${question.question.body}	
+		 </div>
+
+	 <p class="answers-title">Answers</p>	 
+	 <ul class="answers">
+
+	 <%
+	 	question.answers?.each { answer->
+	 %>
+	 	<li>
+	 		<div class="author">${answer.owner.display_name}</div>
+	 		<p>${answer.body}</p>
+	 	</li>
+	 <%
+
+	 	}
+	 %>
+	 </ul>	
+	 <%
+	}%>
+	  </li>
+	</ul>
+  </body>
+
+
+</html>

@@ -1,0 +1,13 @@
+#search-url {
+	height: 40px;
+}
+
+.importFeedback {
+	margin: 10px 0;
+}
+
+#mainImportFeedback {
+	position: absolute;
+	top: 0;
+	right: 12px;
+}

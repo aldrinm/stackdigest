@@ -1,0 +1,4 @@
+{
+  "main": "MailService.groovy",
+  "worker": true
+}

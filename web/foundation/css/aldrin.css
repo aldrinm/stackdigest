@@ -1,0 +1,50 @@
+body {
+  margin-bottom: 50px;
+}
+
+header {
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+    padding: 6px 0;
+}
+
+footer {
+  height: 50px;
+  text-align: center;
+}
+
+#user-refused .alert {
+    padding: 20px;
+}
+#user-refused .alert p {
+    margin-top: 20px;
+}
+
+#oauth-part2 .alert-box {
+    position: relative;
+    margin-top: 90px;
+}
+#oauth-part2 img {
+    float: right;
+    position: absolute;
+    right: 0px;
+    top: -76px;
+}
+
+.profile {
+    line-height: 79px;
+    text-align: right;
+}
+
+.profile img {
+    float: right;
+    max-width: 80px;
+}
+.profile span {
+    margin-right: 12px;
+    font-size: 1.5em;
+}
+
+#signed-in {
+    margin-top: 12px;
+}

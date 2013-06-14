@@ -1,0 +1,65 @@
+<html>
+  <head>
+  	<style type="text/css">
+        .push-next-page {
+            page-break-after: always;
+        }
+	</style>
+    <title>Digest - date and site name</title>
+  </head>
+  <body>
+    <nav epub:type="toc" class="page-break-after">
+        <ol>
+            <li>
+                <a href="#${apiSiteParameter}">${apiSiteParameter}</a>
+                <ol>
+                <%
+                    questions.each { question ->
+                        def q = question.question
+                %>
+                <li><a href='#${q.question_id}'>${q.title}</a></li>
+                <%
+                    }
+                %>
+                </ol>
+            </li>
+        </ol>
+    </nav>
+
+	<%
+	    questions.each { question ->
+	        def q = question.question
+	        def completeAnswers = question.completeAnswers
+            def newAnswersIds = newAnswersLookupIds[q.question_id]
+	%>
+        <h2 name="${q.question_id}">
+            <a class="title" href='${q.link}'>${q.title}</a> - ${q.owner.display_name}
+        </h2>
+        ${q.body}
+
+        <i>Answers</i>
+	    <ul class="answers">
+	    <%
+	 	  completeAnswers?.each { answer->
+	    %>
+    	 	<li class=${answer.answer_id in newAnswersIds?'updated':''}>
+                <%
+                    if (answer.is_accepted) {
+                %>
+                    <div class="accepted">Accepted Answer</div>
+                <%
+                    }
+                %>
+    	 		<div class="author">${answer.owner.display_name}</div>
+    	 		<p>${answer.body}</p>
+    	 	</li>
+    	<%
+	 	  }
+	    %>
+	    </ul>	
+	<%
+	   }
+    %>
+
+  </body>
+</html>

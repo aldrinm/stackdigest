@@ -1,0 +1,18 @@
+--- 
+applications: 
+  .: 
+    name: stackdigest
+    framework: 
+      name: standalone
+      info: 
+        mem: 64M
+        description: Standalone Application
+        exec: 
+    runtime: java7
+    command: vert.x/bin/vertx run App.groovy
+    url: stackdigest.cloudfoundry.com
+    mem: 512M
+    instances: 1
+    services: 
+      mongodb-stackdigest: 
+        type: mongodb
