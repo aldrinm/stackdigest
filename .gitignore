@@ -7,4 +7,7 @@
 .idea/
 
 ### kindle generated ###
-Compiled-report/**
+Compiled-report*/**
+
+### report output folder ###
+room/**
