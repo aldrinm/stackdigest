@@ -1,8 +1,6 @@
-import org.vertx.groovy.core.http.RouteMatcher
-
 def webServerConf = [
-    port: (container.env['VCAP_APP_PORT'] ?: '80') as int,
-    host: container.env['VCAP_APP_HOST'] ?: 'localhost',
+    port: (container.env['VCAP_APP_PORT'] ?: '8080') as int,
+    host: container.env['VCAP_APP_HOST'] ?: '192.168.2.6',
     bridge: true,
   inbound_permitted: [
     [
@@ -16,34 +14,6 @@ def webServerConf = [
     ],
     [
       address : 'seService'
-    ],
-    [
-      address : 'vertx.mongopersistor',
-      match : [
-        action : 'find',
-        collection : 'questions',
-      ]
-    ],
-    [
-      address : 'vertx.mongopersistor',
-      match : [
-        action : 'count',
-        collection : 'questions',
-      ]
-    ],
-    [
-      address : 'vertx.mongopersistor',
-      match : [
-        action : 'save',
-        collection : 'questions'
-      ]
-    ],
-    [
-      address : 'vertx.mongopersistor',
-      match : [
-        action : 'delete',
-        collection : 'questions'
-      ]
     ]
   ],
 
@@ -57,7 +27,7 @@ def mongoConf = [:]
 
 if (container.env['VCAP_SERVICES']) {
     def vcapEnv = new groovy.json.JsonSlurper().parseText(container.env['VCAP_SERVICES'])
-println "vcapEnv :: $vcapEnv"
+    println "vcapEnv :: $vcapEnv"
     vcapEnv['mongodb-2.0'].credentials.with {
         mongoConf.host = host[0]
         mongoConf.port = port[0] as int
@@ -73,61 +43,55 @@ else {
   mongoConf.db_name = 'stackdigest'
 }
 
-
-
-//println container
-
 container.with {
-/*
   deployModule('vertx.mongo-persistor-v1.2', mongoConf, 1) {
-    deployVerticle('StaticData.groovy') {
-      println "StaticData (dummy done handler. to be fixed in 1.3.1)"  
-    }
-  }
-*/
-  deployModule('mod-mongo-persistor', mongoConf, 1) {
-    deployVerticle('StaticData.groovy')
-  }
+}
 
-  deployVerticle("DigestService.groovy")
+  deployVerticle("DigestService.groovy") {
+      //create output folder if not already present
+      new File('room').mkdirs()
+  }
 
     def restConf = [:]
 
     if (container.env['VCAP_SERVICES']) {
-
         restConf.clientId = ''
         restConf.clientSecret = ''
         restConf.key = ''
-        restConf.redirectUrl = 'http://stackdigest.cloudfoundry.com/se-oauth.html'
     }
     else {
         restConf.clientId = '1319'
         restConf.clientSecret = 'iG76prVsOW6bLspzL7)kVg(('
         restConf.key = 'ZOrkgbZaY3GOpcG9)TsmBQ(('
-        restConf.redirectUrl = 'http://localhost/se-oauth.html'
     }
+    restConf.redirectUrl = "http://${webServerConf.host}:${webServerConf.port}/se-oauth.html".toString()
 
-  //actually only needed by the DigestService and JobService
+    //actually only needed by the DigestService and JobService
   deployVerticle("RESTService.groovy", restConf, 1) {
       deployModule("jobs") //dependent on the rest verticle
+
+      //update the sites
+      vertx.eventBus.send('restService', [action:'updateStackExchangeSites']) {reply->
+          println "...received reply ${reply}"
+      }
+
   }
 
   deployVerticle("SEService.groovy", restConf)
 
-    deployModule("mail")
+  def mailConf = [:]
+  if (container.env['VCAP_SERVICES']) {
 
-
+  }
+  else {
+    mailConf.username = container.env['MAIL_USERNAME']
+    mailConf.password= container.env['MAIL_PASSWORD']
+    mailConf.fromAddress = "stackdigest@gmail.com"
+  }
+  deployModule("mail", mailConf)
 
 }
 
 
-/*
-def server = vertx.createHttpServer()
-def routeMatcher = new RouteMatcher()
+println "App.groovy done with initialization"
 
-routeMatcher.get("/questions") { req ->
-    req.response.end "You requested dogs"
-}
-
-server.requestHandler(routeMatcher.asClosure()).listen(80, "localhost")
-*/

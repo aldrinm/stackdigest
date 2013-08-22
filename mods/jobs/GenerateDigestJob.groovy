@@ -13,12 +13,11 @@ public class GenerateDigestJob implements Job {
 
 
     def generateDigest(def vertx) {
-       vertx.eventBus.send('digestService', [action:'generateDigest']) {reply->
-
+       vertx.eventBus.send('digestService', [action:'generateDigest2']) {reply->
         if (reply?.body?.status == 'ok') {
           //println 'reply = '+reply
         } else {
-          println "Error :: digestService.generateDigest"
+          println "Error :: digestService.generateDigest. reply = $reply"
         }
       };
     }

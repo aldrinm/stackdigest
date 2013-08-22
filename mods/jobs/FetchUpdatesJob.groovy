@@ -5,7 +5,7 @@ import org.quartz.Job
 public class FetchUpdatesJob implements Job {
 
     public void execute(JobExecutionContext context) throws JobExecutionException {
-      System.err.println( "context.jobDetail.jobDataMap = "+context.jobDetail.jobDataMap);
+      //System.err.println( "context.jobDetail.jobDataMap = "+context.jobDetail.jobDataMap);
 
       def vertx = context.jobDetail.jobDataMap?.vertx 
       fetchUpdates(vertx)
@@ -14,13 +14,13 @@ public class FetchUpdatesJob implements Job {
     def fetchUpdates(def vertx) {
       //def logger = container.logger
       //logger.debug "Fetching updates.............."
-      vertx.eventBus.send('digestService', [action:'fetchUpdates']) {reply->
+      vertx.eventBus.send('digestService', [action:'fetchUpdates2']) {reply->
         //println "JobService :: reply = ${reply}"
 
         if (reply?.body?.status == 'ok') {
           //println 'reply = '+reply
         } else {
-          println "Error :: digestService.fetchUpdates"
+          println "Error :: digestService.fetchUpdates. reply = $reply"
         }
       };
 

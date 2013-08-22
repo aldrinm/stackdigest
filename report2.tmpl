@@ -5,24 +5,19 @@
             page-break-after: always;
         }
 	</style>
-    <title>Digest - date and site name</title>
+    <title>Digest - ${apiSiteParameter} - ${reportDate}</title>
   </head>
   <body>
     <nav epub:type="toc" class="page-break-after">
         <ol>
-            <li>
-                <a href="#${apiSiteParameter}">${apiSiteParameter}</a>
-                <ol>
-                <%
-                    questions.each { question ->
-                        def q = question.question
-                %>
-                <li><a href='#${q.question_id}'>${q.title}</a></li>
-                <%
-                    }
-                %>
-                </ol>
-            </li>
+        <%
+            questions.each { question ->
+                def q = question.question
+        %>
+        <li><a href='#${q.question_id}'>${q.title}</a></li>
+        <%
+            }
+        %>
         </ol>
     </nav>
 
@@ -35,7 +30,8 @@
         <h2 name="${q.question_id}">
             <a class="title" href='${q.link}'>${q.title}</a> - ${q.owner.display_name}
         </h2>
-        ${q.body}
+
+        <p>${q.body}</p>
 
         <i>Answers</i>
 	    <ul class="answers">

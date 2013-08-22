@@ -24,6 +24,7 @@ vertx.eventBus.registerHandler("mailService") { message ->
 
     switch(body?.action) {
     	case 'send':
+            body.payload << [from: container.config.fromAddress]
     		sendMail(body.payload)
 			message.reply([status: 'pending'])
     		break
@@ -32,6 +33,8 @@ vertx.eventBus.registerHandler("mailService") { message ->
 
 
 def sendMail(mailProp) {
+    println "mailProp = $mailProp"
+
 	def logger = container.logger		
 	  //Authenticator authenticator = new CustomAuthenticator();
   Properties properties = new Properties();
@@ -42,8 +45,8 @@ def sendMail(mailProp) {
         properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory")
         properties.put("mail.smtp.socketFactory.fallback", "false")
 
-     def username = "stackdigest@gmail.com"
-     def password = "barney frog"
+     def username = container.config.username
+     def password = container.config.password
 
         Session session = Session.getDefaultInstance(properties, new javax.mail.Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
@@ -55,7 +58,7 @@ def sendMail(mailProp) {
 	  	// Create a default MimeMessage object.
 	  	new MimeMessage(session).with { message ->
 		    // From, Subject and Content
-		    from = new InternetAddress( mailProp.from )
+		    from = new InternetAddress(mailProp.from)
 		    subject = "Stack digest (${new Date()})"
 
 

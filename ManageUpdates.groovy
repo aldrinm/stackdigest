@@ -14,6 +14,31 @@ class ManageUpdates {
         this.config = config
     }
 
+    public void syncFavorites(Closure callback) {
+        def fetchQuery = [
+                action: 'find',
+                collection: 'users',
+                keys: [accountId: 1],
+                matcher: [:]
+        ]
+
+        vertx.eventBus.send('vertx.mongopersistor', fetchQuery) {reply->
+            if (reply?.body?.status == 'ok') {
+                reply.body.results.each {user->
+                    syncFavorites(user.accountId) {
+                        callback()
+                    }
+                }
+                //message?.reply([body: reply.body])
+            } else {
+                //console.error('Failed to accept order');
+                println "Error :: while executing fetch query"
+                callback()
+            }
+        };
+
+    }
+
     public void syncFavorites(int accountId, Closure callback) {
         lookupAccessToken(accountId) {accessToken ->
             if (accessToken) {
@@ -22,24 +47,27 @@ class ManageUpdates {
                         def updateTime = (int)(new Date().time/1000)
                         updateSites(accountId, allSites, updateTime) {site, apiSiteParameter->
                             println "GOT site = ${site.site_url}"
-                            if (apiSiteParameter == 'music') { //todo: testing only
+//                            if (apiSiteParameter == 'music') { //todo: testing only
                                 updateSiteQuestions(accountId, accessToken, site, apiSiteParameter) {
                                     println "DONE WITH SITE $site"
                                 }
-                            }
+//                            }
                         }
                     }
                     else {
                         println "Error while fetching all associated sites: ${allSites.error_message}"
                     }
                 }
+                vertx.eventBus.send('restService', [action: 'fetchUpdatedAnswers',
+                        payload:[accountId: accountId]]) {
+                }
 
             }
             else {
                 println "No access token available for ${accessToken}. This is probably a logic error."
             }
-
         }
+        callback()
     }
 
     private void lookupAccessToken(int accountId, Closure callback) {
@@ -54,6 +82,9 @@ class ManageUpdates {
             if (userReply?.body?.status == 'ok' && userReply?.body?.result?.size()>0) {
                 accessToken = userReply.body.result.accessToken
                 callback(accessToken)
+            }
+            else {
+                callback(null)
             }
         }
     }
@@ -120,19 +151,27 @@ class ManageUpdates {
                 action: "findone",
                 collection: "users",
                 keys: [sites:1],
-                criteria: [
+                matcher: [
                         accountId: accountId
                 ]
         ]
-        vertx.eventBus.send('vertx.mongopersistor', userQuery) {mongoreply->
-            def siteUserIds = mongoreply?.body?.result?.sites?.collectMany {
+        vertx.eventBus.send('vertx.mongopersistor', userQuery) {userReply->
+            println "userReply?.body = $userReply?.body"
+            println "userReply?.body?.result = ${userReply?.body?.result}"
+            println "userReply?.body?.result?.sites? = ${userReply?.body?.result?.sites}"
+
+            def siteUserIds = userReply?.body?.result?.sites?.collectMany {
                 def t = []
                 if (it?.userId) t<< it.userId
                 t
             }
 
+            println "siteUserIds = $siteUserIds"
+            println "siteDetails = $siteDetails"
             siteDetails.items.each {site ->
                 lookupApiSiteParameter(site.site_url) {apiSiteParameter ->
+                    println "{site.user_id} = ${site.user_id}"
+                    println "{site.user_id in siteUserIds} = ${site.user_id in siteUserIds}"
                     if (site.user_id in siteUserIds) {
                         //update
                         def updateSiteQuery = [
@@ -162,7 +201,7 @@ class ManageUpdates {
                     else {
                         //add new site
                         def newSiteQuery = [
-                                action: "findandmodify",
+                                action: "update",
                                 collection: "users",
                                 keys: [_id:1],
                                 criteria: [
@@ -280,7 +319,8 @@ class ManageUpdates {
 
     private def fetchSiteFavorites(def accessToken, def apiSiteParameter, Integer page=1, Integer pageSize=30, Closure callback) {
         if (!accessToken) return
-        def path = "/2.1/me/favorites?key=${config.key}&access_token=${accessToken}&site=${apiSiteParameter}&page=${page}&pagesize=${pageSize}"
+        def path = "/2.1/me/favorites?key=${config.key}&access_token=${accessToken}&site=${apiSiteParameter}" +
+                "&page=${page}&pagesize=${pageSize}&filter=!9j_cPnEaK"
         makeActualRequest(path) { jsonResponse ->
             //println "favs jsonResponse = $jsonResponse"
             if (!jsonResponse.error_message) {

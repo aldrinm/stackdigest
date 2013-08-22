@@ -1,6 +1,7 @@
 import org.vertx.groovy.core.buffer.Buffer
 import org.vertx.groovy.core.http.HttpClient
 import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 
 import java.util.zip.*
 import java.io.*
@@ -17,6 +18,11 @@ vertx.eventBus.registerHandler('restService') { message ->
  			def r = fetchQuestion(body.questionId)   		
     		message.reply([status: 'ok', questionDetail: r])
     		break
+    	case 'fetchUpdatedAnswers':
+ 			fetchUpdatedAnswers(body?.payload?.accountId) {
+            }
+            message.reply([status: 'pending'])
+            break
     	case 'fetchAnswers':
  			def r = fetchAnswers(body.questionId, body.nowTimeUnix, body.fromDateUnix)   		
     		message.reply([status: 'ok'])
@@ -32,17 +38,31 @@ vertx.eventBus.registerHandler('restService') { message ->
 
         case 'oauth-part2':
             println body.payload
-            getAccessToken(body.payload) {status, sessionId, errorType, errorMessage->
-                vertx.eventBus.send('frontend',
-                        [action: 'updateSession',
-                         payload:[status: status,
-                                 sessionId: sessionId,
-                                 errorType: errorType,
-                                 errorMessage: errorMessage
-                                ]
-                        ]) {}
+            def sessionId = UUID.randomUUID().toString()
+            getAccessToken(body.payload) {accessToken, errorType, errorMessage->
+                if (accessToken) {
+                    //generate a session id
+                    initUserSession(accessToken, sessionId) {status->
+                        vertx.eventBus.send('frontend-'+sessionId,
+                                [action: 'updateSession',
+                                        payload:[status: status,
+                                                sessionId: sessionId
+                                        ]
+                                ]) {}
+                    }
+                }
+                else {
+                    vertx.eventBus.send('frontend-'+sessionId,
+                            [action: 'updateSession',
+                                    payload:[status: 'error',
+                                            errorType: errorType,
+                                            errorMessage: errorMessage
+                                    ]
+                            ]) {}
+                }
             }
-            message.reply([status: 'pending']);
+            //send the session id to the client so that it can start listening
+            message.reply([status: 'pending', sessionId: sessionId]);
             break
 
         case 'syncFavoritesForUI':
@@ -71,7 +91,7 @@ vertx.eventBus.registerHandler('restService') { message ->
         case 'auth-session':
             message.reply([status: 'pending'])
             checkAuth(body?.payload?.sessionId) {result->
-                vertx.eventBus.send('frontend',
+                vertx.eventBus.send('frontend-'+body?.payload?.tempCallbackId,
                         [action: 'authSession',
                                 payload:[status: result.status, profileDetails: result.payload]
                         ]) {
@@ -88,6 +108,106 @@ vertx.eventBus.registerHandler('restService') { message ->
 
             break;
 
+        case 'fetchAllSites':
+            fetchAllSites(body?.payload?.sessionId) {List siteDetails ->
+                vertx.eventBus.send('frontend-'+body?.payload?.sessionId,
+                        [action: 'updateSites',
+                                payload:[siteDetails: siteDetails]
+                        ]) {}
+            }
+            break;
+
+        case 'updateEmailAddress':
+            if (body?.payload) {
+                updateEmailAddress(body.payload.sessionId, body.payload.emailAddress) {status, errorMessage ->
+                    vertx.eventBus.send('frontend-'+body.payload?.sessionId,
+                            [action: 'updatedEmail',
+                                    payload:[status: status,
+                                            errorMessage: errorMessage
+                                    ]
+                            ]) {}
+                }
+            }
+            break;
+    }
+}
+
+def updateEmailAddress(String userSessionId, String emailAddress, Closure callback) {
+    lookupAccountId(userSessionId) {accountId->
+        def updateUserQuery = [
+                action: 'update',
+                collection: 'users',
+                keys: [_id: 1],
+                criteria: [
+                        accountId: accountId
+                ],
+                objNew: [
+                    $set: [
+                            email: emailAddress
+                    ]
+                ]
+        ]
+
+        vertx.eventBus.send('vertx.mongopersistor', updateUserQuery) {updateUserQueryReply->
+            if (updateUserQueryReply?.body?.status == 'ok') {
+                callback('ok', '')
+            }
+            else {
+                callback('error', 'Could not save email address')
+            }
+        }
+    }
+}
+
+def lookupAccountId(String userSessionId, Closure callback) {
+    def userQuery = [
+            action:  'findone',
+            collection: 'userSession',
+            matcher: [sessionId: userSessionId]
+    ]
+    def accountId
+    vertx.eventBus.send('vertx.mongopersistor', userQuery) {mongoreply->
+        if (mongoreply?.body?.status == 'ok' && mongoreply?.body?.result?.size()>0) {
+            accountId = mongoreply.body.result.accountId
+            callback(accountId)
+        }
+    }
+}
+
+def fetchAllSites(String userSessionId, Closure callback) {
+    println "in fetchAllSites with userSessionId = ${userSessionId}"
+    lookupAccountId(userSessionId) {accountId->
+        lookupAccessToken(accountId) {accessToken->
+            fetchAllAssociatedSites(accessToken) {jsonResponse->
+                def siteDetails = []
+                def countSites = jsonResponse.items.size()
+                jsonResponse.items.eachWithIndex {site, i->
+                    def siteDetail = [name: site.site_name,
+                            totalFavs: 0, //initial 0. todo: update whenever we know the number
+                            url: site.site_url
+                    ]
+
+                    //find the corresponding logo
+                    def logoUrl
+                    def logoQuery = [
+                            action: 'findone',
+                            collection: 'sites',
+                            keys: [logoUrl:1],
+                            matcher: [siteUrl: site.site_url]
+                    ]
+                    vertx.eventBus.send('vertx.mongopersistor', logoQuery) {logoQueryReply->
+                        if (logoQueryReply?.body?.status == 'ok' && logoQueryReply?.body?.result?.size()>0) {
+                            logoUrl = logoQueryReply.body.result.logoUrl
+                        }
+                        siteDetail.logoUrl = logoUrl
+                        siteDetails << siteDetail
+
+                        if ((i+1)>=countSites) callback(siteDetails)
+
+                    }
+                }
+            }
+        }
 
     }
 }
@@ -215,6 +335,51 @@ def fetchFavorites(String userid, int page=1) {
 
 }
 
+def initUserSession(String accessToken, String sessionId, Closure callback) {
+    fetchUserDetails(accessToken) { displayName, profileImage, accountId ->
+        def newUser = [
+                action: "update",
+                collection: "users",
+                keys: [_id:1],
+                criteria: [
+                        accountId: accountId
+                ],
+                objNew: [
+                        $set: [
+                                accountId: accountId,
+                                displayName: displayName,
+                                profileImage: profileImage,
+                                accessToken: accessToken
+                        ]
+                ],
+                upsert: true
+        ];
+        vertx.eventBus.send('vertx.mongopersistor', newUser) {mongoreply->
+        }
+
+        //save session info
+        def newSession = [
+                action: "update",
+                collection: "userSession",
+                keys: [_id:1],
+                criteria: [
+                        accountId: accountId
+                ],
+                objNew: [
+                        $set: [
+                                accountId: accountId,
+                                sessionId: sessionId
+                        ]
+                ],
+                upsert: true
+        ];
+        vertx.eventBus.send('vertx.mongopersistor', newSession) {mongoreply->
+            callback('ok')
+        }
+
+    }
+}
+
 def getAccessToken(Map payload, Closure callback) {
     def config = container.config
     println "code = ${payload.code}"
@@ -234,59 +399,15 @@ def getAccessToken(Map payload, Closure callback) {
             if (resp.statusCode >= 400) {
                 def jsonObj = new JsonSlurper().parseText(body.toString())
                 println jsonObj
-                callback('error', null, jsonObj.error?.type, jsonObj.error?.message)
+                callback(null, jsonObj.error?.type, jsonObj.error?.message)
             }
             else {
                 //extract the access_token and save it
                 println "looks like we got the access code"
                 def params = extractQueryParams(body.toString())
                 println "params.access_token = ${params.access_token}"
-                //generate a session id
-                String sessionId = UUID.randomUUID().toString()
 
-                fetchUserDetails(params.access_token) { displayName, profileImage, accountId ->
-                    def newUser = [
-                            action: "findandmodify",
-                            collection: "users",
-                            keys: [_id:1],
-                            criteria: [
-                                accountId: accountId
-                            ],
-                            objNew: [
-                                    $set: [
-                                            accountId: accountId,
-                                            displayName: displayName,
-                                            profileImage: profileImage,
-                                            accessToken: params.access_token
-                                    ]
-                            ],
-                            upsert: true
-                    ];
-                    vertx.eventBus.send('vertx.mongopersistor', newUser) {mongoreply->
-                    }
-
-                    //save session info
-                    def newSession = [
-                            action: "findandmodify",
-                            collection: "userSession",
-                            keys: [_id:1],
-                            criteria: [
-                                accountId: accountId
-                            ],
-                            objNew: [
-                                    $set: [
-                                            accountId: accountId,
-                                            sessionId: sessionId
-                                    ]
-                            ],
-                            upsert: true
-                    ];
-                    vertx.eventBus.send('vertx.mongopersistor', newSession) {mongoreply->
-                        callback('ok', sessionId, null, null)
-                    }
-
-                }
-
+                callback(params.access_token, null, null)
             }
         }
     }
@@ -308,19 +429,23 @@ private def fetchAnyAssociatedSiteDomain(String accessToken, Closure callback) {
     def config = container.config
     def path = "/2.1/me/associated?key=${config.key}&access_token=${accessToken}"
     makeActualRequest(path) { jsonResponse ->
-        //println "jsonResponse = $jsonResponse"
-        if (jsonResponse?.items?.size() > 0) {
-            println jsonResponse.items[0].account_id
-            println jsonResponse.items[0].site_url
-
+        println "jsonResponse = $jsonResponse"
+        if (!jsonResponse.error_message) {
             def anysiteDomain
-            try {
-                anysiteDomain = new URL(jsonResponse.items[0].site_url).host
-            } catch (Exception ex) {
-                //ignore any exception usually MalFormed or NPE
-            }
+            if (jsonResponse?.items?.size() > 0) {
+                println jsonResponse.items[0].account_id
+                println jsonResponse.items[0].site_url
 
+                try {
+                    anysiteDomain = new URL(jsonResponse.items[0].site_url).host
+                } catch (Exception ex) {
+                    //ignore any exception usually MalFormed or NPE
+                }
+            }
             callback(anysiteDomain)
+        }
+        else {
+            callback(null)
         }
     }
 }
@@ -395,18 +520,39 @@ private def makeActualRequest(String path, Closure callback) {
 private def fetchUserDetails(String accessToken, Closure callback) {
     def config = container.config
 
-    fetchAnyAssociatedSiteDomain(accessToken) {anysiteDomain ->
-        println "got a domain ${anysiteDomain}"
-        def path = "/2.1/me?key=${config.key}&access_token=${accessToken}&site=${anysiteDomain}"
-        makeActualRequest(path) { jsonResponse ->
-            println "/me jsonResponse = $jsonResponse"
-            if (jsonResponse?.items?.size() > 0) {
-                callback(jsonResponse.items[0].display_name, jsonResponse.items[0].profile_image,
-                        jsonResponse.items[0].account_id
-                )
+    def userData = vertx.sharedData.getMap('userData-'+accessToken)
+    println "************>> userData = $userData"
+    if (userData!=null) {
+        if (userData['me-response']) {
+            def jsonResponse = new JsonSlurper().parseText(userData['me-response'])
+            callback(jsonResponse.items[0].display_name, jsonResponse.items[0].profile_image,
+                    jsonResponse.items[0].account_id)
+        }
+        else {
+            fetchAnyAssociatedSiteDomain(accessToken) {anysiteDomain ->
+                if (anysiteDomain) {
+                    println "got a domain ${anysiteDomain}"
+                    def path = "/2.1/me?key=${config.key}&access_token=${accessToken}&site=${anysiteDomain}"
+                    makeActualRequest(path) { jsonResponse ->
+                        println "/me jsonResponse = $jsonResponse"
+                        if (jsonResponse?.items?.size() > 0) {
+                            userData['me-response'] = JsonOutput.toJson(jsonResponse)
+                            callback(jsonResponse.items[0].display_name, jsonResponse.items[0].profile_image,
+                                    jsonResponse.items[0].account_id)
+                        }
+                    }
+                }
+                else {
+                    println "Did not get a domain. Shouldn't happen typically, since a user will have at least one domain"
+                }
             }
+
         }
     }
+    else {
+        println "Null SharedData. Should not be here !!! "
+    }
+
 }
 
 private HttpClient getHttpClient() {
@@ -424,25 +570,35 @@ private Map extractQueryParams(queryString) {
 }
 
 private def checkAuth(String sessionId, Closure callback) {
+    println "checkAuth called with sessionId = $sessionId"
+    if (!sessionId) {
+        callback([status: 'denied'])
+        return
+    }
     def userSessionQuery = [
             action: "find",
             collection: "userSession",
             matcher: [sessionId: sessionId]
         ]
     vertx.eventBus.send('vertx.mongopersistor', userSessionQuery) {mongoreply->
-        println "find user session size ${mongoreply?.body?.result?.size()}"
-        if (mongoreply?.body?.status == 'ok' && mongoreply?.body?.result?.size()>0) {
+        println "find user session size ${mongoreply?.body}"
+        println "find user session size ${mongoreply?.body?.results?.size()}"
+        if (mongoreply?.body?.status == 'ok' && mongoreply?.body?.results?.size()>0) {
             //get the access_token and query the user details
             def accessTokenQuery = [
                     action: "find",
                     collection: "users",
-                    matcher: [accountId: mongoreply.body.result[0].accountId]
+                    matcher: [accountId: mongoreply.body.results[0].accountId]
             ];
             vertx.eventBus.send('vertx.mongopersistor', accessTokenQuery) {accessTokenReply->
-                if (accessTokenReply?.body?.status == 'ok' && accessTokenReply?.body?.result?.size() > 0) {
-                    fetchUserDetails(accessTokenReply.body.result[0].accessToken) {displayName, profileImage, accountId ->
-                        callback([status: 'ok',
-                                payload:[displayName: displayName, profileImage: profileImage, accountId: accountId]])
+                if (accessTokenReply?.body?.status == 'ok' && accessTokenReply?.body?.results?.size() > 0) {
+                    def accessToken = accessTokenReply.body.results[0].accessToken
+                    fetchUserDetails(accessToken) {displayName, profileImage, accountId ->
+                        fetchUserEmail(accountId, accessToken) {String email->
+                            callback([status: 'ok',
+                                    payload:[displayName: displayName, profileImage: profileImage, accountId: accountId,
+                                            email: email]])
+                        }
                     }
                 }
             }
@@ -452,6 +608,30 @@ private def checkAuth(String sessionId, Closure callback) {
         }
     }
 
+}
+
+def fetchUserEmail(int accountId, String accessToken, Closure callback) {
+    //check the cache
+    def userData = vertx.sharedData.getMap('userData-'+accessToken)
+    if (userData!=null) {
+        if (userData['email']) {
+            callback(userData['email'])
+        }
+        else {
+            def emailQuery = [
+                    action: "find",
+                    collection: "users",
+                    matcher: [accountId: accountId]
+            ]
+            vertx.eventBus.send('vertx.mongopersistor', emailQuery) {emailReply->
+                if (emailReply?.body?.status == 'ok' && emailReply?.body?.results?.size() > 0) {
+                    def email = emailReply.body.results[0].email
+                    userData['email'] = email?email:''
+                    callback(email)
+                }
+            }
+        }
+    }
 }
 
 //todo: revisit after writing the actual sync
@@ -627,7 +807,7 @@ private updateSite(int accountId, def siteDetails, Closure callback) {
             action: "findone",
             collection: "users",
             keys: [sites:1],
-            criteria: [
+            matcher: [
                 accountId: accountId
             ]
     ]
@@ -669,7 +849,7 @@ private updateSite(int accountId, def siteDetails, Closure callback) {
                 else {
                     //add new site
                     def newSiteQuery = [
-                            action: "findandmodify",
+                            action: "update",
                             collection: "users",
                             keys: [_id:1],
                             criteria: [
@@ -730,7 +910,7 @@ def updateStackExchangeSites(Integer page=1, Integer pageSize=30) {
                 //println "${site.name} - ${site.api_site_parameter}"
                 //save it
                 def newSiteQuery = [
-                        action: "findandmodify",
+                        action: "update",
                         collection: "sites",
                         keys: [_id:1],
                         criteria: [
@@ -739,7 +919,7 @@ def updateStackExchangeSites(Integer page=1, Integer pageSize=30) {
                         objNew: [
                                 $set: [
                                         name: site.name,
-                                        logoUrl: site.logo_url,
+                                        logoUrl: site.icon_url,
                                         apiSiteParameter: site.api_site_parameter,
                                         siteUrl: site.site_url
                                 ]
@@ -799,6 +979,8 @@ private def fetchUpdatedAnswers(int accountId, Closure callback) {
                             fetchAndSaveUpdatedAnswers(accountId, questionIdList, site.apiSiteParameter, site.lastUpdate) {
                                 fetchAndSaveCompleteAnswers(accountId, questionIdList, site.apiSiteParameter, callback)
                             }
+                            //also update the question details
+
                         }
                     }
                 }
@@ -994,7 +1176,8 @@ private void saveCompleteAnswer(int accountId, String apiSiteParameter, def comp
 private def fetchAnswers2(String questionIds, String apiSiteParameter, def fromTimeUnix, Integer page=1, Integer pageSize=30, Closure callback) {
     def config = container.config
     if (!fromTimeUnix) fromTimeUnix = 0
-    def path = "/2.1/questions/${questionIds}/answers?site=${apiSiteParameter}&filter=!SkTFqY*mJjzMIRdG.z&fromdate=${fromTimeUnix}&page=${page}&pagesize=${pageSize}"
+    def path = "/2.1/questions/${questionIds}/answers?site=${apiSiteParameter}&filter=!SkTFqY*mJjzMIRdG.z" +
+            "&fromdate=${fromTimeUnix}&page=${page}&pagesize=${pageSize}"
 
     makeActualRequest(path) { jsonResponse ->
         //println "fetchAnswers2 jsonResponse = $jsonResponse"

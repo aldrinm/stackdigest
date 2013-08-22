@@ -10,12 +10,8 @@ public class SEMaintenanceJob implements Job {
     }
 
     def updateStackExchangeSites(def vertx) {
-        println "vertx = $vertx"
-
-      println "Updating StackExchange sites"
       vertx.eventBus.send('restService', [action:'updateStackExchangeSites']) {reply->
-          println "...received reply ${reply}"
+          //println "...received reply ${reply}"
       }
-        println "AFTER "
     }
 }

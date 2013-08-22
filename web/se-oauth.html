@@ -9,7 +9,7 @@
 
     <link rel="stylesheet" href="foundation/css/normalize.css" />
     <link rel="stylesheet" href="foundation/css/foundation.css" />
-    <link rel="stylesheet" href="foundation/css/aldrin.css" />
+    <link rel="stylesheet" href="css/stackdigest.css" />
     <script type='text/javascript' src='jquery-1.8.2.min.js'></script>
     <script src="foundation/js/vendor/custom.modernizr.js"></script>
     <script type='text/javascript' src='js3rdparty/sockjs-0.2.1.min.js'></script>
@@ -102,15 +102,15 @@
 
                     break;
                 case 'updateSession':
-                    $.cookie('sessionId', message.payload.sessionId);
-                    window.location.href = "/index-foundation.html";
+                    $.cookie('sessionId', message.payload.sessionId, { expires: 14 });
+                    window.location.href = "/index.html";
                     break;
             }
         }
 
     eb.onopen = function() {
             console.log('eventbus inited');
-            eb.registerHandler('frontend', sink);
+            //eb.registerHandler('frontend', sink);
             initStuff();
         };
 
@@ -118,7 +118,6 @@
 
             eb.send('restService', {action: 'oauthConfig'},
                 function (oauthConfig) {
-                    console.log(oauthConfig);
                     var oUrl = oauthConfig.oAuthUrl
                     if (oUrl) {
                         $('a.signin').bind('click', function() {
@@ -145,6 +144,7 @@
                     function(reply) {
                         console.log('received reply ');
                         console.log(reply);
+                        eb.registerHandler('frontend-'+reply.sessionId, sink);
                     }
                 );
             } else {

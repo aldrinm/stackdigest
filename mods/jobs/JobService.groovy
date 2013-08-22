@@ -59,18 +59,6 @@ Trigger seMaintenanceTrigger = TriggerBuilder.newTrigger()
         .withSchedule(CalendarIntervalScheduleBuilder.calendarIntervalSchedule().withIntervalInDays(intervalDays))
         .build()
 sched.scheduleJob(seMaintenanceJob, seMaintenanceTrigger)
-* /
-
-
-//
-/*
-    For every user
-        For every question
-            fetch an update since the last update
-                do the magic
-            end fetch
-        end question
-    end user
-
-    mail out notif for this user, one for each site
 */
+
+

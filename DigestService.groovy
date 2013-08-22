@@ -1,13 +1,12 @@
 import groovy.text.SimpleTemplateEngine
 
-
 import org.vertx.groovy.core.buffer.Buffer
 import org.vertx.groovy.core.http.HttpClient
 import groovy.json.JsonSlurper
 
 import java.util.zip.*
 import java.io.*
-
+import java.text.SimpleDateFormat
 
 
 def logger = container.logger
@@ -22,8 +21,7 @@ def saveCallback = {status, payload->
 }
 
 vertx.eventBus.registerHandler("digestService") { message ->
-    //println message
-    //logger.debug '*********************************************** digestService ' +message?.body
+    logger.debug '*********************************************** digestService ' +message?.body
     def body = message?.body
 
     switch(body?.action) {
@@ -41,12 +39,16 @@ vertx.eventBus.registerHandler("digestService") { message ->
     		fetchUpdates()
     		break
 
+    	case 'fetchUpdates2':
+    		fetchUpdates2()
+    		break
+
     	case 'generateDigest':
     		generateDigest()
     		break
 
     	case 'generateDigest2':
-    		generateDigest2(body.payload?.accountId)
+    		generateDigest2()
     		break
 
     	case 'saveAnswers':
@@ -137,6 +139,30 @@ def fetchUpdates() {
 	    };	
 }
 
+def fetchUpdates2() {
+	def fetchQuery = [
+		action: 'find',
+		collection: 'users',
+        keys: [accountId: 1],
+        matcher: [:]
+	]
+
+	vertx.eventBus.send('vertx.mongopersistor', fetchQuery) {reply->
+	      if (reply?.body?.status == 'ok') {
+              reply.body.results.each {user->
+                  vertx.eventBus.send('restService', [action: 'fetchUpdatedAnswers',
+                          payload:[accountId: user.accountId]]) {
+                  }
+              }
+                  //message?.reply([body: reply.body])
+	      } else {
+	        //console.error('Failed to accept order');
+	        println "Error :: while executing fetch query"
+	      }
+	    };
+}
+
+//todo: questions are not being updated while fetching answer? maybe we should also update the question info
 def processQuestions(def questions) {
 	def logger = container.logger	
 	questions.each {
@@ -144,7 +170,8 @@ def processQuestions(def questions) {
 			def nowTimeUnix = (int)(new Date().time/1000) 
 
 			//fetch answers since last update date and save
-			vertx.eventBus.send('restService', [action:'fetchAnswers', questionId: it.questionId, nowTimeUnix: nowTimeUnix, fromDateUnix: it.updateTime?:0]) {reply->
+			vertx.eventBus.send('restService', [action:'fetchAnswers', questionId: it.questionId,
+                    nowTimeUnix: nowTimeUnix, fromDateUnix: it.updateTime?:0]) {reply->
 				logger.debug "reply.body = ${reply.body}"	
 				if (reply.body?.status == 'ok') {
 					println "OK :: fetchAnswers reply from restService"
@@ -165,7 +192,7 @@ def saveQuestionDetails(body, callback) {
 	def questionDetails = body?.questionDetails
 	if (questionDetails) {
 		def newQuestion = [			      
-				action: "findandmodify",
+				action: "update",
 				collection: "questions",
 				keys: [_id:1, questionId:1, questionLink: 1, title: 1],
 		      	criteria: [
@@ -400,21 +427,41 @@ def saveFavoritesCallback(String status, Map payload) {
 }
 
 
+def generateDigest2() {
+    def usersQuery = [
+            action: "find",
+            collection: "users",
+            keys: [accountId: 1, _id: 0],
+            matcher: [:]
+    ]
+
+    vertx.eventBus.send('vertx.mongopersistor', usersQuery) {usersReply->
+        if (usersReply?.body?.status == 'ok' && usersReply?.body?.results?.size() > 0) {
+            usersReply.body.results.accountId.each {accountId->
+                println "************* found account $accountId"
+                generateDigest2(accountId)
+            }
+        }
+    }
+}
+
 def generateDigest2(int accountId) {
     def sitesQuery = [
             action: "findone",
             collection: "users",
-            keys: [sites: 1, _id: 0],
-            criteria: [
+            keys: [sites: 1, email: 1, _id: 0],
+            matcher: [
                 accountId: accountId
             ]
     ]
     vertx.eventBus.send('vertx.mongopersistor', sitesQuery) {sitesReply->
         //println "sitesReply.body = $sitesReply.body"
         if (sitesReply?.body?.status == 'ok') {
-            sitesReply.body.result.sites.each {site->
-                //println "site = $site"
-                generateDigestReport2(accountId, site.apiSiteParameter)
+            if (sitesReply.body.result.email) {
+                sitesReply.body.result.sites.each {site->
+                    //println "site = $site"
+                    generateDigestReport2(accountId, sitesReply.body.result.email, site.apiSiteParameter)
+                }
             }
         } else {
             println "some error"
@@ -423,7 +470,7 @@ def generateDigest2(int accountId) {
 
 }
 
-def generateDigestReport2(int accountId, def apiSiteParameter) {
+def generateDigestReport2(int accountId, String emailAddress, def apiSiteParameter) {
     def logger = container.logger
 
     println "apiSiteParameter = $apiSiteParameter"
@@ -442,42 +489,29 @@ def generateDigestReport2(int accountId, def apiSiteParameter) {
     vertx.eventBus.send('vertx.mongopersistor', newUpdateQuery) {newUpdateReply->
         //println "newUpdateReply.body = ${newUpdateReply.body}"
         if (newUpdateReply?.body?.status == 'ok') {
-            produceSiteReport(accountId, apiSiteParameter, newUpdateReply.body.results)
-            /*
-            newUpdateReply.body.results.each {question->
-                println "question = ${question.question.question_id}"
+            def filepath = "room/report_${accountId}_${apiSiteParameter}_${new Date().time}.html"
+            produceSiteReport(accountId, apiSiteParameter, newUpdateReply.body.results, filepath)
+            println "2. MAILING the report"
+            vertx.eventBus.send('mailService', [action:'send', payload:[filepath: nfile.absolutePath,
+                    to: emailAddress]]) {reply->
+                logger.debug "Reply from mailService ==> ${reply.body.status}"
             }
-            */
         } else {
             println "some error"
         }
     }
 
-
-    /*
-        def fle = new File("report.tmpl")
-        def nfile = new File("report_${new Date().time}.html")
-        def binding = ["questions": questions]
-        def engine = new SimpleTemplateEngine()
-        def template = engine.createTemplate(fle).make(binding)
-        nfile.withPrintWriter{ pwriter ->
-            pwriter.println template.toString()
-        }
-
-        println "MAILING the report"
-        //mail it
-        vertx.eventBus.send('mailService', [action:'send', payload:[filepath: nfile.absolutePath, to: 'aldrinm@gmail.com', from: 'stackdigest@gmail.com']]) {reply->
-            logger.debug "Reply from mailService ==> ${reply.body.status}"
-        }
-        */
 }
 
-def produceSiteReport(int accountId, String apiSiteParameter, List questions) {
+def produceSiteReport(int accountId, String apiSiteParameter, List questions, String filepath) {
+    println "producing site report"
+    println "questions = $questions"
     if (!questions || questions.size()<1) return
 
     def fle = new File("report2.tmpl")
-    def nfile = new File("room/report_${accountId}_${apiSiteParameter}_${new Date().time}.html")
-
+    println "here 1"
+    def nfile = new File(filepath)
+    println "here 2"
     def newAnswersLookupIds = [:]
 
     questions.each {q->
@@ -485,7 +519,11 @@ def produceSiteReport(int accountId, String apiSiteParameter, List questions) {
         newAnswersLookupIds[q.question.question_id] = ansIds
     }
 
-    def binding = [apiSiteParameter: apiSiteParameter.capitalize(), 'questions': questions, 'newAnswersLookupIds': newAnswersLookupIds]
+    def binding = [apiSiteParameter: apiSiteParameter.capitalize(),
+                    questions: questions,
+                    newAnswersLookupIds: newAnswersLookupIds,
+                    reportDate: new SimpleDateFormat('dd-MMM-YYYY').format(new Date())
+                  ]
     def engine = new SimpleTemplateEngine()
     def template = engine.createTemplate(fle).make(binding)
     nfile.withPrintWriter{ pwriter ->
