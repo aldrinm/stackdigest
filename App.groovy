@@ -60,7 +60,12 @@ container.with {
         restConf.clientSecret = 'iG76prVsOW6bLspzL7)kVg(('
         restConf.key = 'ZOrkgbZaY3GOpcG9)TsmBQ(('
     }
-    restConf.redirectUrl = "http://${webServerConf.host}:${webServerConf.port}/se-oauth.html".toString()
+
+    if (container.env['OPENSHIFT_APP_DNS']) {
+        restConf.redirectUrl = "http://${container.env['OPENSHIFT_APP_DNS']}:${webServerConf.port}/se-oauth.html".toString()
+    } else {
+        restConf.redirectUrl = "http://${webServerConf.host}:${webServerConf.port}/se-oauth.html".toString()
+    }
 
     //actually only needed by the DigestService and JobService
   deployVerticle("RESTService.groovy", restConf, 1) {
