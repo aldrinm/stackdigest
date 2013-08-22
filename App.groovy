@@ -1,7 +1,6 @@
 def webServerConf = [
-    //port: (container.env['OPENSHIFT_APP_DNS'] ?: '80') as int,
-    port: 80,
-    host: container.env['OPENSHIFT_APP_DNS'] ?: '192.168.2.6',
+    port: (container.env['OPENSHIFT_DIY_PORT'] ?: '8080') as int,
+    host: container.env['OPENSHIFT_DIY_IP'] ?: '192.168.2.6',
     bridge: true,
   inbound_permitted: [
     [
