@@ -1,6 +1,7 @@
 def webServerConf = [
-    port: (container.env['VCAP_APP_PORT'] ?: '8080') as int,
-    host: container.env['VCAP_APP_HOST'] ?: '192.168.2.6',
+    //port: (container.env['OPENSHIFT_APP_DNS'] ?: '80') as int,
+    port: 80,
+    host: container.env['OPENSHIFT_APP_DNS'] ?: '192.168.2.6',
     bridge: true,
   inbound_permitted: [
     [
@@ -25,16 +26,12 @@ container.deployModule('vertx.web-server-v1.0', webServerConf)
 
 def mongoConf = [:]
 
-if (container.env['VCAP_SERVICES']) {
-    def vcapEnv = new groovy.json.JsonSlurper().parseText(container.env['VCAP_SERVICES'])
-    println "vcapEnv :: $vcapEnv"
-    vcapEnv['mongodb-2.0'].credentials.with {
-        mongoConf.host = host[0]
-        mongoConf.port = port[0] as int
-        mongoConf.db_name = db[0]
-        mongoConf.username = username[0]
-        mongoConf.password = password[0]
-    }
+if (container.env['OPENSHIFT_MONGODB_DB_HOST']) {
+    mongoConf.host = container.env['OPENSHIFT_MONGODB_DB_HOST']
+    mongoConf.port = container.env['OPENSHIFT_MONGODB_DB_PORT']
+    mongoConf.db_name = 'stackdigest'
+    mongoConf.username = container.env['OPENSHIFT_MONGODB_DB_USERNAME']
+    mongoConf.password = container.env['OPENSHIFT_MONGODB_DB_PASSWORD']
 }
 else {
   mongoConf.address = 'vertx.mongopersistor'
@@ -54,10 +51,10 @@ container.with {
 
     def restConf = [:]
 
-    if (container.env['VCAP_SERVICES']) {
-        restConf.clientId = ''
-        restConf.clientSecret = ''
-        restConf.key = ''
+    if (container.env['OPENSHIFT_APP_NAME']) {
+        restConf.clientId = '1265'
+        restConf.clientSecret = 'O8lRDMhWx9WvMepepmZm9A(('
+        restConf.key = '3UWhhUSOG6WL)cFFLBecpw(('
     }
     else {
         restConf.clientId = '1319'
