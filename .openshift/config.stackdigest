@@ -1,0 +1,8 @@
+VERTX_VERSION="1.3.1.final"
+
+PATH="${OPENSHIFT_DATA_DIR}vert.x-${VERTX_VERSION}/bin:$PATH"
+
+SERVER_FILE="App.groovy"
+#EXAMPLE_DIR="js_example"
+#JAVA_OPTS="${JAVA_OPTS} -javaagent:/var/lib/openshift/51b5b7dc5973ca8516000ab8/app-root/repo/newrelic/newrelic.jar"
+#VERTX_OPTS="-javaagent:/var/lib/openshift/51b5b7dc5973ca8516000ab8/app-root/repo/newrelic/newrelic.jar"

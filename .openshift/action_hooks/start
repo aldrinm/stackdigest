@@ -1,0 +1,26 @@
+#!/bin/bash
+
+export
+
+echo "REPO_DIR = $OPENSHIFT_REPO_DIR"
+cd $OPENSHIFT_REPO_DIR
+echo "PORT = $OPENSHIFT_INTERNAL_PORT"
+echo "HOST = $OPENSHIFT_INTERNAL_IP"
+
+. ".openshift/config.stackdigest"
+
+echo "PORT = $OPENSHIFT_INTERNAL_PORT"
+echo "HOST = $OPENSHIFT_INTERNAL_IP"
+echo "JAVA_OPTS = $JAVA_OPTS"
+echo "VERTX_OPTS = $VERTX_OPTS"
+
+# cd $EXAMPLE_DIR
+
+echo "Starting Vert.x application!"
+
+if [[ -e $SERVER_FILE ]]; then
+	nohup bash -c "exec 'vertx' 'run' '${SERVER_FILE}' '-repo' 'vert-x.github.io' &> ${OPENSHIFT_DIY_LOG_DIR}vert.x.log" &> /dev/null &
+	#echo $! > application.pid
+else
+	echo "Server file does not exists."
+fi
