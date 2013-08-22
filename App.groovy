@@ -28,7 +28,7 @@ def mongoConf = [:]
 
 if (container.env['OPENSHIFT_MONGODB_DB_HOST']) {
     mongoConf.host = container.env['OPENSHIFT_MONGODB_DB_HOST']
-    mongoConf.port = container.env['OPENSHIFT_MONGODB_DB_PORT']
+    mongoConf.port = container.env['OPENSHIFT_MONGODB_DB_PORT'] as int
     mongoConf.db_name = 'stackdigest'
     mongoConf.username = container.env['OPENSHIFT_MONGODB_DB_USERNAME']
     mongoConf.password = container.env['OPENSHIFT_MONGODB_DB_PASSWORD']
