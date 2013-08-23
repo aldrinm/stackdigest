@@ -47,7 +47,6 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
 
 //Comment out for dev testing
-/*
 JobDetail seMaintenanceJob = JobBuilder.newJob(SEMaintenanceJob.class)
         .withIdentity("seMaintenanceJob", "group1")
         .usingJobData(new JobDataMap([vertx: vertx]))
@@ -59,6 +58,5 @@ Trigger seMaintenanceTrigger = TriggerBuilder.newTrigger()
         .withSchedule(CalendarIntervalScheduleBuilder.calendarIntervalSchedule().withIntervalInDays(intervalDays))
         .build()
 sched.scheduleJob(seMaintenanceJob, seMaintenanceTrigger)
-*/
 
 

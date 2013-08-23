@@ -10,6 +10,8 @@ public class SEMaintenanceJob implements Job {
     }
 
     def updateStackExchangeSites(def vertx) {
+       println "[[[[[[[SEMaintenanceJob has started ${new Date()}"
+
       vertx.eventBus.send('restService', [action:'updateStackExchangeSites']) {reply->
           //println "...received reply ${reply}"
       }

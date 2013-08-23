@@ -93,7 +93,7 @@ def generateDigest() {
     		//message?.reply([body: reply.body])        
 	      } else {
 	        //console.error('Failed to accept order');
-	        println "some error"
+	        println "Some error ${reply?.body}"
 	      }
 	    };	
 }
@@ -157,7 +157,7 @@ def fetchUpdates2() {
                   //message?.reply([body: reply.body])
 	      } else {
 	        //console.error('Failed to accept order');
-	        println "Error :: while executing fetch query"
+	        logger.warn "Error :: while executing fetch query ${reply?.body}"
 	      }
 	    };
 }
@@ -174,7 +174,7 @@ def processQuestions(def questions) {
                     nowTimeUnix: nowTimeUnix, fromDateUnix: it.updateTime?:0]) {reply->
 				logger.debug "reply.body = ${reply.body}"	
 				if (reply.body?.status == 'ok') {
-					println "OK :: fetchAnswers reply from restService"
+					//println "OK :: fetchAnswers reply from restService"
 				}
 				else {
 					logger.warn "Some error occurred while fetching the answer details"
@@ -211,8 +211,6 @@ def saveQuestionDetails(body, callback) {
 			];
 
 		vertx.eventBus.send('vertx.mongopersistor', newQuestion) {mongoreply->
-println "************* ${mongoreply.body.result._id}"
-			println "************* ${mongoreply.body}"
 	      if (mongoreply?.body?.status == 'ok') {
 	        mongoreply.body.url = mongoreply.body.questionLink
 		  	callback('ok', [questionId: mongoreply.body.result.questionId, _id: mongoreply.body.result._id.$oid, title: mongoreply.body.result.title]);
@@ -472,8 +470,6 @@ def generateDigest2(int accountId) {
 
 def generateDigestReport2(int accountId, String emailAddress, def apiSiteParameter) {
     def logger = container.logger
-
-    println "apiSiteParameter = $apiSiteParameter"
 
     def newUpdateQuery = [
             action: "find",

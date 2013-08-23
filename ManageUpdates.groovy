@@ -46,10 +46,10 @@ class ManageUpdates {
                     if (!allSites?.error_message) {
                         def updateTime = (int)(new Date().time/1000)
                         updateSites(accountId, allSites, updateTime) {site, apiSiteParameter->
-                            println "GOT site = ${site.site_url}"
+                            //println "GOT site = ${site.site_url}"
 //                            if (apiSiteParameter == 'music') { //todo: testing only
                                 updateSiteQuestions(accountId, accessToken, site, apiSiteParameter) {
-                                    println "DONE WITH SITE $site"
+                                    //println "DONE WITH SITE $site"
                                 }
 //                            }
                         }
@@ -104,7 +104,7 @@ class ManageUpdates {
 
     private void makeActualRequest(String path, Closure callback) {
         HttpClient client = getHttpClient()
-        println "making a request to ${path}"
+        //println "making a request to ${path}"
         def request = client.get(path) { resp ->
             //  println "Got a response: ${resp.statusCode}"
 
@@ -156,22 +156,14 @@ class ManageUpdates {
                 ]
         ]
         vertx.eventBus.send('vertx.mongopersistor', userQuery) {userReply->
-            println "userReply?.body = $userReply?.body"
-            println "userReply?.body?.result = ${userReply?.body?.result}"
-            println "userReply?.body?.result?.sites? = ${userReply?.body?.result?.sites}"
-
             def siteUserIds = userReply?.body?.result?.sites?.collectMany {
                 def t = []
                 if (it?.userId) t<< it.userId
                 t
             }
 
-            println "siteUserIds = $siteUserIds"
-            println "siteDetails = $siteDetails"
             siteDetails.items.each {site ->
                 lookupApiSiteParameter(site.site_url) {apiSiteParameter ->
-                    println "{site.user_id} = ${site.user_id}"
-                    println "{site.user_id in siteUserIds} = ${site.user_id in siteUserIds}"
                     if (site.user_id in siteUserIds) {
                         //update
                         def updateSiteQuery = [
@@ -264,19 +256,15 @@ class ManageUpdates {
                     apiSiteParameter: apiSiteParameter
                 ]
         ]
-        println "USQ :: site = $site"
         vertx.eventBus.send('vertx.mongopersistor', questionQuery) {questionReply->
             def prevQuestionIds = questionReply?.body?.results?.questionId
-            println "questionIds for ${apiSiteParameter} = $prevQuestionIds"
 
             fetchSiteFavorites(accessToken, apiSiteParameter, 1, 30) {favJsonResponse->
-                println "{favJsonResponse?.error_message} = ${favJsonResponse?.error_message}"
                 if (favJsonResponse?.error_message) {
                     println "Error from response: "+favJsonResponse?.error_message
                 }
                 else {
                     favJsonResponse.items.each {q->
-                        println "q.question_id = $q.question_id"
                         //remove the Q id from the existing list of questions
                         prevQuestionIds -= q.question_id
 
@@ -302,13 +290,12 @@ class ManageUpdates {
                         ]
                         vertx.eventBus.send('vertx.mongopersistor', newQuestionQuery) {newQuestionResult->
                             //ignore
-                            println "newQuestionResult = ${newQuestionResult.body}"
+                            //println "newQuestionResult = ${newQuestionResult.body}"
                         }
 
                     }
 
                     //any Qs from the store that were not the updated list?
-                    println "prevQuestionIds = $prevQuestionIds"
                     deleteQuestions(accountId, prevQuestionIds, apiSiteParameter) { }
                 }
             }
@@ -337,7 +324,7 @@ class ManageUpdates {
 
 
     private def deleteQuestions(int accountId, List questionIds, String apiSiteParameter, Closure callback) {
-        println "deleting questions for ${apiSiteParameter} and Qs ${questionIds}"
+        //println "deleting questions for ${apiSiteParameter} and Qs ${questionIds}"
         def deleteQuery = [
                 action: 'delete',
                 collection:  'questions',
@@ -348,7 +335,7 @@ class ManageUpdates {
                 ]
         ]
         vertx.eventBus.send('vertx.mongopersistor', deleteQuery) {deleteReply->
-            println "deleteReply.body = ${deleteReply.body}"
+            //println "deleteReply.body = ${deleteReply.body}"
             callback()
         }
     }

@@ -14,9 +14,10 @@ public class FetchUpdatesJob implements Job {
     def fetchUpdates(def vertx) {
       //def logger = container.logger
       //logger.debug "Fetching updates.............."
+      println "[[[[[[[FetchUpdatesJob has started ${new Date()}"
       vertx.eventBus.send('digestService', [action:'fetchUpdates2']) {reply->
         //println "JobService :: reply = ${reply}"
-
+        println "FetchUpdatesJob is complete ${new Date()} ]]]]]]]]"
         if (reply?.body?.status == 'ok') {
           //println 'reply = '+reply
         } else {

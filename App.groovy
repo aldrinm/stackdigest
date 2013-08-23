@@ -62,7 +62,7 @@ container.with {
     }
 
     if (container.env['OPENSHIFT_APP_DNS']) {
-        restConf.redirectUrl = "http://${container.env['OPENSHIFT_APP_DNS']}:${webServerConf.port}/se-oauth.html".toString()
+        restConf.redirectUrl = "http://${container.env['OPENSHIFT_APP_DNS']}/se-oauth.html".toString()
     } else {
         restConf.redirectUrl = "http://${webServerConf.host}:${webServerConf.port}/se-oauth.html".toString()
     }
@@ -73,7 +73,7 @@ container.with {
 
       //update the sites
       vertx.eventBus.send('restService', [action:'updateStackExchangeSites']) {reply->
-          println "...received reply ${reply}"
+          //println "...received reply ${reply}"
       }
 
   }
@@ -85,6 +85,7 @@ container.with {
 
   }
   else {
+    /* Set these environment variables in the deployment environment separately */
     mailConf.username = container.env['MAIL_USERNAME']
     mailConf.password= container.env['MAIL_PASSWORD']
     mailConf.fromAddress = "stackdigest@gmail.com"
@@ -92,7 +93,6 @@ container.with {
   deployModule("mail", mailConf)
 
 }
-
 
 println "App.groovy done with initialization"
 

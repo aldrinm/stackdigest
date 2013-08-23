@@ -1,16 +1,12 @@
 #!/bin/bash
 
 export
-
-echo "REPO_DIR = $OPENSHIFT_REPO_DIR"
 cd $OPENSHIFT_REPO_DIR
-echo "PORT = $OPENSHIFT_INTERNAL_PORT"
-echo "HOST = $OPENSHIFT_INTERNAL_IP"
 
 . ".openshift/config.stackdigest"
+source ${OPENSHIFT_DATA_DIR}/.protect_this_env
 
-echo "PORT = $OPENSHIFT_INTERNAL_PORT"
-echo "HOST = $OPENSHIFT_INTERNAL_IP"
+echo "MAIL_USERNAME = $MAIL_USERNAME"
 echo "JAVA_OPTS = $JAVA_OPTS"
 echo "VERTX_OPTS = $VERTX_OPTS"
 

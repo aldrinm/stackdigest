@@ -11,7 +11,7 @@ def config = container.config
 
 vertx.eventBus.registerHandler('restService') { message ->
     def body = message?.body
-    println "body = $body"
+    //println "body = $body"
     switch(body?.action) {
 
     	case 'fetchQuestion':
@@ -37,7 +37,7 @@ vertx.eventBus.registerHandler('restService') { message ->
             break
 
         case 'oauth-part2':
-            println body.payload
+            //println body.payload
             def sessionId = UUID.randomUUID().toString()
             getAccessToken(body.payload) {accessToken, errorType, errorMessage->
                 if (accessToken) {
@@ -66,7 +66,6 @@ vertx.eventBus.registerHandler('restService') { message ->
             break
 
         case 'syncFavoritesForUI':
-            println "in syncFavsForUI...."
             message.reply([status: 'pending'])
             syncFavoritesForUI(body.payload?.accountId) {List siteDetails ->
                 vertx.eventBus.send('frontend',
@@ -77,10 +76,9 @@ vertx.eventBus.registerHandler('restService') { message ->
             break;
 
         case 'syncFavorites':
-            println "in syncFavs...."
             message.reply([status: 'pending'])
             syncFavorites(body.payload?.accountId) {->
-                println "FINALLY done syncing"
+                //println "FINALLY done syncing"
             }
             break;
 
@@ -98,14 +96,6 @@ vertx.eventBus.registerHandler('restService') { message ->
                     //ignore
                 }
             }
-            break;
-
-        case 'test':
-            message.reply([status: 'pending'])
-            fetchAndSaveCompleteAnswers(27899, [7961], 'music') {
-                println 'done'
-            }
-
             break;
 
         case 'fetchAllSites':
@@ -175,7 +165,7 @@ def lookupAccountId(String userSessionId, Closure callback) {
 }
 
 def fetchAllSites(String userSessionId, Closure callback) {
-    println "in fetchAllSites with userSessionId = ${userSessionId}"
+    //println "in fetchAllSites with userSessionId = ${userSessionId}"
     lookupAccountId(userSessionId) {accountId->
         lookupAccessToken(accountId) {accessToken->
             fetchAllAssociatedSites(accessToken) {jsonResponse->
@@ -300,7 +290,7 @@ request.end()
 }
 
 def fetchFavorites(String userid, int page=1) {
-	println "getting PAGE ${page}  "
+//	println "getting PAGE ${page}  "
 	//http://api.stackexchange.com/2.1/users/13168779/favorites?site=stackoverflow
 	HttpClient client = vertx.createHttpClient(host: 'api.stackexchange.com', port: 443, SSL: true, trustAll: true)
 		def request = client.get("/2.1/users/${userid}/favorites?site=stackoverflow&filter=!SkTFqY*mJjzMIRdG.z&page=${page}") { resp ->
@@ -382,11 +372,11 @@ def initUserSession(String accessToken, String sessionId, Closure callback) {
 
 def getAccessToken(Map payload, Closure callback) {
     def config = container.config
-    println "code = ${payload.code}"
+    //println "code = ${payload.code}"
 
     HttpClient client = vertx.createHttpClient(host: 'stackexchange.com', port: 443, SSL: true, trustAll: true)
     def request = client.post("/oauth/access_token") { resp ->
-        println "Got a response: ${resp.statusCode}"
+        //println "Got a response: ${resp.statusCode}"
 
         def body = new Buffer('', 'UTF-8')
         resp.dataHandler { buffer ->
@@ -394,8 +384,7 @@ def getAccessToken(Map payload, Closure callback) {
         }
 
         resp.endHandler {
-            println "body = $body"
-            println "{resp.statusCode} = ${resp.statusCode}"
+//            println "{resp.statusCode} = ${resp.statusCode}"
             if (resp.statusCode >= 400) {
                 def jsonObj = new JsonSlurper().parseText(body.toString())
                 println jsonObj
@@ -403,9 +392,8 @@ def getAccessToken(Map payload, Closure callback) {
             }
             else {
                 //extract the access_token and save it
-                println "looks like we got the access code"
                 def params = extractQueryParams(body.toString())
-                println "params.access_token = ${params.access_token}"
+                //println "params.access_token = ${params.access_token}"
 
                 callback(params.access_token, null, null)
             }
@@ -429,13 +417,10 @@ private def fetchAnyAssociatedSiteDomain(String accessToken, Closure callback) {
     def config = container.config
     def path = "/2.1/me/associated?key=${config.key}&access_token=${accessToken}"
     makeActualRequest(path) { jsonResponse ->
-        println "jsonResponse = $jsonResponse"
+        //println "jsonResponse = $jsonResponse"
         if (!jsonResponse.error_message) {
             def anysiteDomain
             if (jsonResponse?.items?.size() > 0) {
-                println jsonResponse.items[0].account_id
-                println jsonResponse.items[0].site_url
-
                 try {
                     anysiteDomain = new URL(jsonResponse.items[0].site_url).host
                 } catch (Exception ex) {
@@ -481,7 +466,7 @@ private def fetchSiteFavorites(def accessToken, def apiSiteParameter, Integer pa
 
 private def makeActualRequest(String path, Closure callback) {
     HttpClient client = getHttpClient()
-    println "--- making a request to ${path}"
+    //println "--- making a request to ${path}"
     def request = client.get(path) { resp ->
         //  println "Got a response: ${resp.statusCode}"
 
@@ -521,7 +506,7 @@ private def fetchUserDetails(String accessToken, Closure callback) {
     def config = container.config
 
     def userData = vertx.sharedData.getMap('userData-'+accessToken)
-    println "************>> userData = $userData"
+    //println "************>> userData = $userData"
     if (userData!=null) {
         if (userData['me-response']) {
             def jsonResponse = new JsonSlurper().parseText(userData['me-response'])
@@ -531,10 +516,8 @@ private def fetchUserDetails(String accessToken, Closure callback) {
         else {
             fetchAnyAssociatedSiteDomain(accessToken) {anysiteDomain ->
                 if (anysiteDomain) {
-                    println "got a domain ${anysiteDomain}"
                     def path = "/2.1/me?key=${config.key}&access_token=${accessToken}&site=${anysiteDomain}"
                     makeActualRequest(path) { jsonResponse ->
-                        println "/me jsonResponse = $jsonResponse"
                         if (jsonResponse?.items?.size() > 0) {
                             userData['me-response'] = JsonOutput.toJson(jsonResponse)
                             callback(jsonResponse.items[0].display_name, jsonResponse.items[0].profile_image,
@@ -570,7 +553,7 @@ private Map extractQueryParams(queryString) {
 }
 
 private def checkAuth(String sessionId, Closure callback) {
-    println "checkAuth called with sessionId = $sessionId"
+    //println "checkAuth called with sessionId = $sessionId"
     if (!sessionId) {
         callback([status: 'denied'])
         return
@@ -581,8 +564,6 @@ private def checkAuth(String sessionId, Closure callback) {
             matcher: [sessionId: sessionId]
         ]
     vertx.eventBus.send('vertx.mongopersistor', userSessionQuery) {mongoreply->
-        println "find user session size ${mongoreply?.body}"
-        println "find user session size ${mongoreply?.body?.results?.size()}"
         if (mongoreply?.body?.status == 'ok' && mongoreply?.body?.results?.size()>0) {
             //get the access_token and query the user details
             def accessTokenQuery = [
@@ -644,11 +625,9 @@ private def syncFavoritesForUI(int accountId, Closure callback) {
     ]
     def accessToken
     vertx.eventBus.send('vertx.mongopersistor', userQuery) {mongoreply->
-        println "{mongoreply?.body} = ${mongoreply?.body}"
         if (mongoreply?.body?.status == 'ok' && mongoreply?.body?.result?.size()>0) {
-            println "{mongoreply?.body?.result?} = ${mongoreply?.body?.result}"
+//            println "{mongoreply?.body?.result?} = ${mongoreply?.body?.result}"
             accessToken = mongoreply.body.result.accessToken
-            println "**** accessToken = $accessToken"
             fetchAllAssociatedSites(accessToken) {jsonResponse ->
                 //println "jsonResponse = $jsonResponse"
                 def siteDetails = []
@@ -668,14 +647,12 @@ private def syncFavoritesForUI(int accountId, Closure callback) {
                             matcher: [siteUrl: site.site_url]
                     ]
                     vertx.eventBus.send('vertx.mongopersistor', logoQuery) {logoQueryReply->
-                        println "{logoQueryReply?.body} = ${logoQueryReply?.body}"
                         if (logoQueryReply?.body?.status == 'ok' && logoQueryReply?.body?.result?.size()>0) {
-                            println "{logoQueryReply?.body?.result?} = ${logoQueryReply?.body?.result}"
                             logoUrl = logoQueryReply.body.result.logoUrl
                         }
                         siteDetail.logoUrl = logoUrl
                         siteDetails << siteDetail
-                        println "i = $i and count = $countSites"
+                        //println "i = $i and count = $countSites"
 
                         if ((i+1)>=countSites) callback(siteDetails)
 
@@ -699,12 +676,12 @@ private def syncFavorites(int accountId, Closure callback) {
                 //println "allSites = $allSites"
                 def i = 0
                 updateSite(accountId, allSites) {site, apiSiteParameter->
-                    println "GOT site = $site"
+                    //println "GOT site = $site"
                     i++
                     if (apiSiteParameter == 'music') { //todo: testing only
 
                         updateSiteQuestions(accountId, site, apiSiteParameter) {
-                            println "DONE WITH SITE $site"
+                            //println "DONE WITH SITE $site"
                         }
 
                     }
@@ -739,19 +716,17 @@ private updateSiteQuestions(int accountId, def site, String apiSiteParameter, Cl
                     apiSiteParameter: apiSiteParameter
                 ]
         ]
-        println "USQ :: site = $site"
         vertx.eventBus.send('vertx.mongopersistor', questionQuery) {questionReply->
             def questionIds = questionReply?.body?.results?.questionId
-            println "questionIds for ${apiSiteParameter} = $questionIds"
+            //println "questionIds for ${apiSiteParameter} = $questionIds"
 
             fetchSiteFavorites(accessToken, apiSiteParameter, 1, 30) {favJsonResponse->
-                println "{favJsonResponse?.error_message} = ${favJsonResponse?.error_message}"
+//                println "{favJsonResponse?.error_message} = ${favJsonResponse?.error_message}"
                 if (favJsonResponse?.error_message) {
                     println "Error from response: "+favJsonResponse?.error_message
                 }
                 else {
                     favJsonResponse.items.each {q->
-                        println "q.question_id = $q.question_id"
                         def newQuestionQuery = [
                                 action: "update",
                                 collection: "questions",
@@ -774,7 +749,7 @@ private updateSiteQuestions(int accountId, def site, String apiSiteParameter, Cl
                         ]
                         vertx.eventBus.send('vertx.mongopersistor', newQuestionQuery) {newQuestionResult->
                             //ignore
-                            println "newQuestionResult = ${newQuestionResult.body}"
+                            //println "newQuestionResult = ${newQuestionResult.body}"
                         }
                     }
                 }
@@ -952,9 +927,7 @@ private def fetchUpdatedAnswers(int accountId, Closure callback) {
     vertx.eventBus.send('vertx.mongopersistor', sitesQuery) {sitesQueryReply->
         //println "sitesQueryReply.body = ${sitesQueryReply.body}"
         if (sitesQueryReply?.body?.status == 'ok') {
-            println "{sitesQueryReply.body.result?.sites?} = ${sitesQueryReply.body.result?.sites}"
             sitesQueryReply.body.result?.sites?.each {site->
-                println "*** site = ${site.apiSiteParameter}"
 
                 def questionQuery = [
                         action: "find",
@@ -971,7 +944,7 @@ private def fetchUpdatedAnswers(int accountId, Closure callback) {
                     if (questionReply?.body?.status == 'ok') {
                         questionIdList = questionReply.body.results?.collect {it.questionId}
                     }
-                    println "questionIdList.size = ${questionIdList.size()}"
+                    //println "questionIdList.size = ${questionIdList.size()}"
 
                     if (questionIdList.size() > 0) {
                         deleteAnswers(accountId, questionIdList, site.apiSiteParameter) {
@@ -992,7 +965,7 @@ private def fetchUpdatedAnswers(int accountId, Closure callback) {
 }
 
 private def deleteAnswers(int accountId, List questionIds, String apiSiteParameter, Closure callback) {
-    println "deleting answers for ${apiSiteParameter} and Qs ${questionIds}"
+//    println "deleting answers for ${apiSiteParameter} and Qs ${questionIds}"
     def deleteQuery = [
             action: 'update',
             collection:  'questions',
@@ -1010,7 +983,7 @@ private def deleteAnswers(int accountId, List questionIds, String apiSiteParamet
 
     ]
     vertx.eventBus.send('vertx.mongopersistor', deleteQuery) {deleteReply->
-        println "deleteReply.body = ${deleteReply.body}"
+//        println "deleteReply.body = ${deleteReply.body}"
         callback()
     }
 }
@@ -1033,7 +1006,7 @@ private def deleteCompleteAnswers(int accountId, List questionIds, String apiSit
 
     ]
     vertx.eventBus.send('vertx.mongopersistor', deleteQuery) {deleteReply->
-        println "deleteReply.body = ${deleteReply.body}"
+//        println "deleteReply.body = ${deleteReply.body}"
         callback()
     }
 }
@@ -1054,12 +1027,7 @@ private fetchAndSaveUpdatedAnswers(int accountId, List questionIds, String apiSi
         //save the answers
         if (!jsonResp.error_message) {
             jsonResp.items.each {item->
-                println "question_d = "+item.question_id
-                println "answer_id = "+item.answer_id
-                println "l a d = "+item.last_activity_date
-
                 saveNewAnswer(accountId, apiSiteParameter, item)
-
             }
         }
         else {
@@ -1098,10 +1066,6 @@ private fetchAndSaveCompleteAnswers(int accountId, List questionIds, String apiS
             //delete existing 'complete answers'
             deleteCompleteAnswers(accountId, questionIdsList, apiSiteParameter) {
                 jsonResp.items.each {item->
-                    println "question_d = "+item.question_id
-                    println "answer_id = "+item.answer_id
-                    println "l a d = "+item.last_activity_date
-
                     saveCompleteAnswer(accountId, apiSiteParameter, item)
                 }
             }
@@ -1166,7 +1130,6 @@ private void saveCompleteAnswer(int accountId, String apiSiteParameter, def comp
             ]
     ]
 
-    println "answerQuery = $answerQuery"
     vertx.eventBus.send('vertx.mongopersistor', answerQuery) {answerQueryReply->
     }
 }
