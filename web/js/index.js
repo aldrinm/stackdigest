@@ -57,8 +57,8 @@
       }
 
       function sink(message) {
-      console.log('==sink==');
-      console.log(message);
+      //console.log('==sink==');
+      //console.log(message);
           switch (message.action) {
               case 'profileUpdate':
                   updateProfile(message.payload);
@@ -88,6 +88,7 @@
                             theModel.sites.push(new Site(val.name, val.totalFavs, val.logoUrl, val.apiSiteParameter))
                         }
                 );
+                eb.send('restService', {action:'fetchFaveCounts', payload:{sessionId: $.cookie('sessionId')}});
                 break;
 
               case 'updatedEmail':
@@ -99,7 +100,7 @@
 
               case 'faveCount':
                 //console.log(message.payload);
-                $('div.siteInfo[name="'+message.payload.apiSiteParameter+'"]').find('div[class="siteInfo-bubble"]').text(message.payload.count+' faves');
+                $('div.siteInfo[name="'+message.payload.apiSiteParameter+'"]').find('div[class="siteInfo-bubble"]').text(message.payload.count+' faves').show();
                 break;
          }
       }
@@ -113,16 +114,16 @@
         //if not already in storage
         var userSites = sessionStorage.userSites
         if (!userSites) {
-            eb.send('restService', {action: 'fetchAllSites', payload: {sessionId: $.cookie('sessionId')} });
+          eb.send('restService', {action: 'fetchAllSites', payload: {sessionId: $.cookie('sessionId')} });
         } else {
-            userSites = JSON.parse(userSites);
+          userSites = JSON.parse(userSites);
           $.each(userSites,
             function(ind, val) {
                 theModel.sites.push(new Site(val.name, val.totalFavs, val.logoUrl, val.apiSiteParameter))
             }
           );
+          eb.send('restService', {action:'fetchFaveCounts', payload:{sessionId: $.cookie('sessionId')}});
         }
-        eb.send('restService', {action:'fetchFaveCounts', payload:{sessionId: $.cookie('sessionId')}});
       }
 
       function initStuff() {
