@@ -74,10 +74,11 @@
 
             <div class="row">
                 <h4>Your StackExchange sites</h4>
-                <div class="panel">
-                    <div data-bind="foreach: sites">
-                        <img data-bind="attr: {src: logoUrl, title: name}" />
-                    </div>
+                <div class="panel siteInfo-container" data-bind="foreach: sites">
+                        <div class="siteInfo" data-bind="attr: {'name': apiSiteParameter}">
+                            <img data-bind="attr: {src: logoUrl, title: name}" />
+                            <div class="siteInfo-bubble">23 faves</div>
+                        </div>
                 </div>
             </div>
 

@@ -15,7 +15,7 @@ public class FetchUpdatesJob implements Job {
       //def logger = container.logger
       //logger.debug "Fetching updates.............."
       println "[[[[[[[FetchUpdatesJob has started ${new Date()}"
-      vertx.eventBus.send('digestService', [action:'fetchUpdates2']) {reply->
+      vertx.eventBus.send('seService', [action:'syncFavorites']) {reply->
         //println "JobService :: reply = ${reply}"
         println "FetchUpdatesJob is complete ${new Date()} ]]]]]]]]"
         if (reply?.body?.status == 'ok') {

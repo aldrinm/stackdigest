@@ -15,11 +15,12 @@
     var eb = new vertx.EventBus(window.location.protocol + '//' + window.location.hostname + ':' + window.location.port + '/eventbus');
 
     var theModel = new SiteViewModel();
-      function Site(name, totalFavs, logoUrl) {
+      function Site(name, totalFavs, logoUrl, apiSiteParameter) {
         var self = this;
         self.name = name;
         self.totalFavs = totalFavs;
         self.logoUrl = logoUrl;
+        self.apiSiteParameter = apiSiteParameter;
       }
 
       function SiteViewModel() {
@@ -84,8 +85,9 @@
                 sessionStorage.userSites = JSON.stringify(message.payload.siteDetails);
                 $.each(message.payload.siteDetails,
                         function(ind, val) {
-                            theModel.sites.push(new Site(val.name, val.totalFavs, val.logoUrl))
-                        });
+                            theModel.sites.push(new Site(val.name, val.totalFavs, val.logoUrl, val.apiSiteParameter))
+                        }
+                );
                 break;
 
               case 'updatedEmail':
@@ -95,6 +97,10 @@
                         }, 2000);
                     break;
 
+              case 'faveCount':
+                //console.log(message.payload);
+                $('div.siteInfo[name="'+message.payload.apiSiteParameter+'"]').find('div[class="siteInfo-bubble"]').text(message.payload.count+' faves');
+                break;
          }
       }
 
@@ -112,10 +118,11 @@
             userSites = JSON.parse(userSites);
           $.each(userSites,
             function(ind, val) {
-                theModel.sites.push(new Site(val.name, val.totalFavs, val.logoUrl))
+                theModel.sites.push(new Site(val.name, val.totalFavs, val.logoUrl, val.apiSiteParameter))
             }
           );
         }
+        eb.send('restService', {action:'fetchFaveCounts', payload:{sessionId: $.cookie('sessionId')}});
       }
 
       function initStuff() {

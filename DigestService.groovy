@@ -149,6 +149,7 @@ def fetchUpdates2() {
 
 	vertx.eventBus.send('vertx.mongopersistor', fetchQuery) {reply->
 	      if (reply?.body?.status == 'ok') {
+              println "******** ${reply?.body}"
               reply.body.results.each {user->
                   vertx.eventBus.send('restService', [action: 'fetchUpdatedAnswers',
                           payload:[accountId: user.accountId]]) {

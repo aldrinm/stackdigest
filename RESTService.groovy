@@ -119,6 +119,54 @@ vertx.eventBus.registerHandler('restService') { message ->
                 }
             }
             break;
+
+        case 'fetchFaveCounts':
+            if (body.payload) {
+                fetchFaveCounts(body.payload.sessionId) {apiSiteParameter, questionCount->
+                    vertx.eventBus.send('frontend-'+body.payload?.sessionId,
+                            [action: 'faveCount',
+                                    payload:[apiSiteParameter: apiSiteParameter,
+                                            count: questionCount
+                                    ]
+                            ]) {}
+                }
+            }
+            break;
+    }
+}
+
+def fetchFaveCounts(String userSessionId, Closure callback) {
+    lookupAccountId(userSessionId) {accountId->
+        def sitesQuery = [
+                action: 'findone',
+                collection: 'users',
+                keys: [sites: 1],
+                matcher: [accountId: accountId]
+        ]
+        vertx.eventBus.send('vertx.mongopersistor', sitesQuery) {sitesQueryReply->
+            //println "sitesQueryReply.body = ${sitesQueryReply.body}"
+            if (sitesQueryReply?.body?.status == 'ok') {
+                //def questionsCount = [:]
+                sitesQueryReply.body.result?.sites?.each {site->
+                    def faveCountsQuery = [
+                            action: 'count',
+                            collection: 'questions',
+                            matcher: [
+                                    accountId: accountId,
+                                    apiSiteParameter: site.apiSiteParameter
+                            ]
+                    ]
+                    vertx.eventBus.send('vertx.mongopersistor', faveCountsQuery) {faveCountsQueryReply->
+                        //println "sitesQueryReply.body = ${sitesQueryReply.body}"
+                        if (faveCountsQueryReply?.body?.status == 'ok') {
+                            //questionsCount[site.apiSiteParameter] = faveCountsQueryReply?.body?.count
+                            //note: this will callback for each site separately
+                            callback(site.apiSiteParameter, faveCountsQueryReply?.body?.count)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -173,23 +221,24 @@ def fetchAllSites(String userSessionId, Closure callback) {
                 def countSites = jsonResponse.items.size()
                 jsonResponse.items.eachWithIndex {site, i->
                     def siteDetail = [name: site.site_name,
-                            totalFavs: 0, //initial 0. todo: update whenever we know the number
                             url: site.site_url
                     ]
 
-                    //find the corresponding logo
-                    def logoUrl
+                    //find the corresponding logo and apiSiteParameter
+                    def logoUrl, apiSiteParameter
                     def logoQuery = [
                             action: 'findone',
                             collection: 'sites',
-                            keys: [logoUrl:1],
+                            keys: [logoUrl:1, apiSiteParameter: 1],
                             matcher: [siteUrl: site.site_url]
                     ]
                     vertx.eventBus.send('vertx.mongopersistor', logoQuery) {logoQueryReply->
                         if (logoQueryReply?.body?.status == 'ok' && logoQueryReply?.body?.result?.size()>0) {
                             logoUrl = logoQueryReply.body.result.logoUrl
+                            apiSiteParameter = logoQueryReply.body.result.apiSiteParameter
                         }
                         siteDetail.logoUrl = logoUrl
+                        siteDetail.apiSiteParameter = apiSiteParameter
                         siteDetails << siteDetail
 
                         if ((i+1)>=countSites) callback(siteDetails)
@@ -634,7 +683,6 @@ private def syncFavoritesForUI(int accountId, Closure callback) {
                 def countSites = jsonResponse.items.size()
                 jsonResponse.items.eachWithIndex {site, i->
                     def siteDetail = [name: site.site_name,
-                            totalFavs: 0, //initial 0. todo: update whenever we know the number
                             url: site.site_url
                     ]
 

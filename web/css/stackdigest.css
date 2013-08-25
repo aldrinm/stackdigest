@@ -64,3 +64,35 @@ footer {
 .stackexchange-logo{
     width: 20px;
 }
+
+.siteInfo {
+    position: relative;
+    width: 158px;
+    height: 158px;
+    display: inline;
+    position: relative;
+    float: left;
+}
+
+.siteInfo img {
+    width: 158px;
+    height: 158px;
+}
+
+.siteInfo-bubble {
+    position: absolute;
+    top: 50%;
+    right: 50%;
+    background-color: rgb(235, 235, 77);
+    color: #444;
+    padding: 2px 3px;
+    font-size: 0.8em;
+    border: 1px solid rgb(2, 2, 2);
+    font-weight: bold;
+    border-radius: 5px;
+    box-shadow: 2px 2px 2px rgb(95, 81, 81);
+}
+
+.siteInfo-container {
+    float: left;
+}
