@@ -24,10 +24,35 @@ vertx.eventBus.registerHandler("mailService") { message ->
 
     switch(body?.action) {
     	case 'send':
-            body.payload << [from: container.config.fromAddress]
+            body.payload << [from: container.config.fromAddress,
+                text: """Hi,
+
+	        		Your digest for ${new Date()} is attached with this email.
+
+	        		Cheers,
+	        		Stackdigest.
+	        	"""
+            ]
     		sendMail(body.payload)
 			message.reply([status: 'pending'])
     		break
+
+        case 'test' :
+            def payload = [to: "aldrinm@gmail.com", from: container.config.fromAddress,
+                    text:"""
+                       Hello. This is a test message to test the cron service.
+
+                       DO NOT delete this email.
+
+                       Keep it around to verify the schedule of the emails.
+
+
+                       Cheers,
+                       Postman
+                """]
+            sendMail(payload)
+            message.reply([status: 'pending'])
+            break
 	}
 }
 
@@ -63,37 +88,30 @@ def sendMail(mailProp) {
 
 
 			BodyPart messageBodyPart = new MimeBodyPart();
-	        messageBodyPart.setText("""Hi, 
-
-	        		Your digest for ${new Date()} is attached with this email.
-
-	        		Cheers,
-	        		Stackdigest.
-	        	""");
+	        messageBodyPart.text = mailProp.text
 
         	Multipart multipart = new MimeMultipart();
 	        multipart.addBodyPart(messageBodyPart);
 
-	        BodyPart messageBodyPart2 = new MimeBodyPart();
-	        DataSource source = new FileDataSource(mailProp.filepath);
-	        messageBodyPart2.setFileName("stackdigest-.html")
-	        messageBodyPart2.setDataHandler(new DataHandler(source));
-
-	        multipart.addBodyPart(messageBodyPart2);
+            if (mailProp.filepath) {
+                DataSource source = new FileDataSource(mailProp.filepath);
+                if (source) {
+                    BodyPart messageBodyPart2 = new MimeBodyPart();
+                    messageBodyPart2.setFileName("stackdigest-.html")
+                    messageBodyPart2.setDataHandler(new DataHandler(source));
+                    multipart.addBodyPart(messageBodyPart2);
+                }
+            }
 
 	        setContent(multipart);
 
 		    // Add recipients
 		    addRecipient( Message.RecipientType.TO, new InternetAddress( mailProp.to ) )
 
+              println "message = $message"
+
 		    // Send the message
 		    Transport.send( message )
-
-		    //send a clean up message
-    	    vertx.eventBus.send('digestService', [action:'cleanup', payload:[filepath: mailProp.filepath]]) {reply->
-		       logger.info "Deleting file ${mailProp.filepath} after emailing"
-		    }
-
 
 		    println "Sent successfully"
 		  }

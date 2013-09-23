@@ -541,6 +541,10 @@ private def makeActualRequest(String path, Closure callback) {
             reader.close()
             gzip.close()
             client.close()
+
+            //let's log errors and other such uninteresting stuff
+            responseErrorsAndStuff(jsonObj, path)
+
             callback(jsonObj)
         }
     }
@@ -549,6 +553,16 @@ private def makeActualRequest(String path, Closure callback) {
     request.end()
     client.close()
 
+}
+
+private def responseErrorsAndStuff(def jsonResp, String path) {
+    if (jsonResp.error_id) {
+        println "StackExchange Error - error_id=${jsonResp.error_id}, error_name=${jsonResp.error_name}, " +
+                "error_message=${jsonResp.error_message} for api=${path}"
+    }
+    if (jsonResp.backoff) {
+        println "Backoff=${jsonResp.backoff} for api=${path}"
+    }
 }
 
 private def fetchUserDetails(String accessToken, Closure callback) {
@@ -1088,7 +1102,7 @@ private fetchAndSaveUpdatedAnswers(int accountId, List questionIds, String apiSi
     //are there more questions to process...
     if (questionIds.size() > Constants.MAX_BATCH_SIZE) {
         fetchAndSaveUpdatedAnswers(accountId, questionIds.subList(Constants.MAX_BATCH_SIZE,
-            questionIds.size()), siteParameter, callback)
+            questionIds.size()), apiSiteParameter, lastUpdate, callback)
     }
     else {
         callback()
@@ -1126,7 +1140,7 @@ private fetchAndSaveCompleteAnswers(int accountId, List questionIds, String apiS
     //are there more questions to process...
     if (questionIds.size() > Constants.MAX_BATCH_SIZE) {
         fetchAndSaveCompleteAnswers(accountId, questionIds.subList(Constants.MAX_BATCH_SIZE,
-            questionIds.size()), siteParameter, callback)
+            questionIds.size()), apiSiteParameter, callback)
     }
     else {
         callback()

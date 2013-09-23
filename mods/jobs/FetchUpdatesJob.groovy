@@ -21,7 +21,7 @@ public class FetchUpdatesJob implements Job {
         if (reply?.body?.status == 'ok') {
           //println 'reply = '+reply
         } else {
-          println "Error :: digestService.fetchUpdates. reply = $reply"
+          println "Error :: digestService.fetchUpdates reply.body = ${reply?.body}"
         }
       };
 

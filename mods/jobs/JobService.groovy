@@ -44,6 +44,20 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
   sched.scheduleJob(generateDigestJob, generateDigestTrigger);
 
+    /** Test email service **/
+  JobDetail testEmailJob = JobBuilder.newJob(TestEmailJob.class)
+      .withIdentity("testEmailJob", "group1")
+      .usingJobData(new JobDataMap([vertx: vertx]))
+      .build();
+
+  Trigger testEmailTrigger = TriggerBuilder.newTrigger()
+      .withIdentity("testEmailJobTrigger", "group1")
+      .startNow()
+      .withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(6, 0))
+      .build();
+
+  sched.scheduleJob(testEmailJob, testEmailTrigger);
+
 
 
 //Comment out for dev testing

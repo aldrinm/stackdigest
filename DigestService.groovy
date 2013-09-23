@@ -331,7 +331,7 @@ def save(body, callback) {
 def cleanup(Map params) {
 	def logger = container.logger
 	logger.debug "Deleting file ${params.filepath}"
-	new File(params.filepath).delete()
+	new File(params.filepath)?.delete()
 }
 
 def importFavorites(Map params) {
@@ -487,11 +487,18 @@ def generateDigestReport2(int accountId, String emailAddress, def apiSiteParamet
         //println "newUpdateReply.body = ${newUpdateReply.body}"
         if (newUpdateReply?.body?.status == 'ok') {
             def filepath = "room/report_${accountId}_${apiSiteParameter}_${new Date().time}.html"
-            produceSiteReport(accountId, apiSiteParameter, newUpdateReply.body.results, filepath)
-            println "2. MAILING the report"
-            vertx.eventBus.send('mailService', [action:'send', payload:[filepath: nfile.absolutePath,
-                    to: emailAddress]]) {reply->
-                logger.debug "Reply from mailService ==> ${reply.body.status}"
+            if (newUpdateReply.body.results && newUpdateReply.body.results.size()>0) {
+                produceSiteReport(accountId, apiSiteParameter, newUpdateReply.body.results, filepath)
+                println "2. MAILING the report"
+                println "filepath = $filepath"
+                vertx.eventBus.send('mailService', [action:'send', payload:[filepath: filepath.toString(),
+                        to: emailAddress]]) {reply->
+                    logger.debug "Reply from mailService ==> ${reply.body.status}"
+                    //send a clean up message
+                    vertx.eventBus.send('digestService', [action:'cleanup', payload:[filepath: filepath.toString()]]) {cleanupReply->
+                        logger.info "Deleting file ${filepath.toString()} after emailing"
+                    }
+                }
             }
         } else {
             println "some error"
