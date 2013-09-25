@@ -19,6 +19,7 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
   sched.start();
 
+/*
   JobDetail fetchUpdatesJob = JobBuilder.newJob(FetchUpdatesJob.class)
       .withIdentity("fetchUpdatesJob", "group1")
       .usingJobData(new JobDataMap([vertx: vertx]))
@@ -31,6 +32,9 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
       .build();
 
   sched.scheduleJob(fetchUpdatesJob, fetchUpdatesTrigger)
+*/
+
+/*
 
   JobDetail generateDigestJob = JobBuilder.newJob(GenerateDigestJob.class)
       .withIdentity("generateDigestJob", "group1")
@@ -44,6 +48,7 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
       .build();
 
   sched.scheduleJob(generateDigestJob, generateDigestTrigger);
+*/
 
     /** Test email service **/
   JobDetail testEmailJob = JobBuilder.newJob(TestEmailJob.class)
@@ -53,7 +58,7 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
   Trigger testEmailTrigger = TriggerBuilder.newTrigger()
       .withIdentity("testEmailJobTrigger", "group1")
-      .withSchedule(SimpleScheduleBuilder.repeatMinutelyForTotalCount(2))
+      .withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(13, 0))
       .build();
 
   sched.scheduleJob(testEmailJob, testEmailTrigger);

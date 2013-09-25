@@ -4,6 +4,8 @@ export
 cd $OPENSHIFT_REPO_DIR
 
 . ".openshift/config.stackdigest"
+
+#create .protect_this_env on the server only. store credential details there. never check this into source control
 source ${OPENSHIFT_DATA_DIR}/.protect_this_env
 
 echo "MAIL_USERNAME = $MAIL_USERNAME"
