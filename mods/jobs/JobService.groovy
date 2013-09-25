@@ -10,6 +10,7 @@ import org.quartz.TriggerBuilder
 import org.quartz.JobBuilder
 import org.quartz.CronScheduleBuilder
 import org.quartz.CalendarIntervalScheduleBuilder
+import org.quartz.SimpleScheduleBuilder
 import static org.quartz.DateBuilder.MONDAY
 
 SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
@@ -58,8 +59,25 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
   sched.scheduleJob(testEmailJob, testEmailTrigger);
 
+/** Test email service **/
+JobDetail printTest = JobBuilder.newJob(PrintTestJob.class)
+        .withIdentity("printTestJob", "group1")
+        .usingJobData(new JobDataMap([vertx: vertx]))
+        .build();
+
+Trigger printTestTrigger = TriggerBuilder.newTrigger()
+        .withIdentity("printTestJobTrigger", "group1")
+        .startNow()
+        .withSchedule(SimpleScheduleBuilder.repeatMinutelyForTotalCount(3))
+        .build();
+
+sched.scheduleJob(printTest, printTestTrigger);
+println "In JobService"
+println "printTest = $printTest"
+println "printTestTrigger = $printTestTrigger"
 
 
+/*
 //Comment out for dev testing
 JobDetail seMaintenanceJob = JobBuilder.newJob(SEMaintenanceJob.class)
         .withIdentity("seMaintenanceJob", "group1")
@@ -72,5 +90,6 @@ Trigger seMaintenanceTrigger = TriggerBuilder.newTrigger()
         .withSchedule(CalendarIntervalScheduleBuilder.calendarIntervalSchedule().withIntervalInDays(intervalDays))
         .build()
 sched.scheduleJob(seMaintenanceJob, seMaintenanceTrigger)
+*/
 
-
+println "JobService - DONE"

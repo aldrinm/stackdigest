@@ -69,7 +69,10 @@ container.with {
 
     //actually only needed by the DigestService and JobService
   deployVerticle("RESTService.groovy", restConf, 1) {
-      deployModule("jobs") //dependent on the rest verticle
+      println "are we here 1"
+      deployModule("jobs") {
+                            println "are we here 2"
+      }
 
       //update the sites
       vertx.eventBus.send('restService', [action:'updateStackExchangeSites']) {reply->
