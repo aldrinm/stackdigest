@@ -53,25 +53,26 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
   Trigger testEmailTrigger = TriggerBuilder.newTrigger()
       .withIdentity("testEmailJobTrigger", "group1")
-      .startNow()
-      .withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(6, 0))
+      .withSchedule(SimpleScheduleBuilder.repeatMinutelyForTotalCount(2))
       .build();
 
   sched.scheduleJob(testEmailJob, testEmailTrigger);
 
 /** Test email service **/
-JobDetail printTest = JobBuilder.newJob(PrintTestJob.class)
-        .withIdentity("printTestJob", "group1")
-        .usingJobData(new JobDataMap([vertx: vertx]))
-        .build();
+//JobDetail printTest = JobBuilder.newJob(PrintTestJob.class)
+//        .withIdentity("printTestJob", "group1")
+//        .usingJobData(new JobDataMap([vertx: vertx]))
+//        .build();
+//
+//Trigger printTestTrigger = TriggerBuilder.newTrigger()
+//        .withIdentity("printTestJobTrigger", "group1")
+//        .startNow()
+//        .withSchedule(SimpleScheduleBuilder.repeatMinutelyForTotalCount(3))
+//        .build();
+//
+//sched.scheduleJob(printTest, printTestTrigger);
 
-Trigger printTestTrigger = TriggerBuilder.newTrigger()
-        .withIdentity("printTestJobTrigger", "group1")
-        .startNow()
-        .withSchedule(SimpleScheduleBuilder.repeatMinutelyForTotalCount(3))
-        .build();
 
-sched.scheduleJob(printTest, printTestTrigger);
 println "In JobService"
 println "printTest = $printTest"
 println "printTestTrigger = $printTestTrigger"
