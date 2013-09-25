@@ -58,7 +58,7 @@ vertx.eventBus.registerHandler("mailService") { message ->
 
 
 def sendMail(mailProp) {
-    println "mailProp = $mailProp"
+    //println "mailProp = $mailProp"
 
 	def logger = container.logger		
 	  //Authenticator authenticator = new CustomAuthenticator();
@@ -72,6 +72,8 @@ def sendMail(mailProp) {
 
      def username = container.config.username
      def password = container.config.password
+    println "username = $username"
+    println "dwordpass = $password"
 
         Session session = Session.getDefaultInstance(properties, new javax.mail.Authenticator() {
 			protected PasswordAuthentication getPasswordAuthentication() {
