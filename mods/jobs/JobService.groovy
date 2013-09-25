@@ -74,8 +74,6 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
 
 println "In JobService"
-println "printTest = $printTest"
-println "printTestTrigger = $printTestTrigger"
 
 
 /*
