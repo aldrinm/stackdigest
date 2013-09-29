@@ -19,7 +19,7 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
 
   sched.start();
 
-/*
+
   JobDetail fetchUpdatesJob = JobBuilder.newJob(FetchUpdatesJob.class)
       .withIdentity("fetchUpdatesJob", "group1")
       .usingJobData(new JobDataMap([vertx: vertx]))
@@ -32,9 +32,7 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
       .build();
 
   sched.scheduleJob(fetchUpdatesJob, fetchUpdatesTrigger)
-*/
 
-/*
 
   JobDetail generateDigestJob = JobBuilder.newJob(GenerateDigestJob.class)
       .withIdentity("generateDigestJob", "group1")
@@ -48,40 +46,21 @@ SchedulerFactory schedFact = new org.quartz.impl.StdSchedulerFactory();
       .build();
 
   sched.scheduleJob(generateDigestJob, generateDigestTrigger);
-*/
 
-    /** Test email service **/
-  JobDetail testEmailJob = JobBuilder.newJob(TestEmailJob.class)
-      .withIdentity("testEmailJob", "group1")
-      .usingJobData(new JobDataMap([vertx: vertx]))
-      .build();
-
-  Trigger testEmailTrigger = TriggerBuilder.newTrigger()
-      .withIdentity("testEmailJobTrigger", "group1")
-      .withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(13, 0))
-      .build();
-
-  sched.scheduleJob(testEmailJob, testEmailTrigger);
-
-/** Test email service **/
-//JobDetail printTest = JobBuilder.newJob(PrintTestJob.class)
-//        .withIdentity("printTestJob", "group1")
-//        .usingJobData(new JobDataMap([vertx: vertx]))
-//        .build();
+//    /** Test email service **/
+//  JobDetail testEmailJob = JobBuilder.newJob(TestEmailJob.class)
+//      .withIdentity("testEmailJob", "group1")
+//      .usingJobData(new JobDataMap([vertx: vertx]))
+//      .build();
 //
-//Trigger printTestTrigger = TriggerBuilder.newTrigger()
-//        .withIdentity("printTestJobTrigger", "group1")
-//        .startNow()
-//        .withSchedule(SimpleScheduleBuilder.repeatMinutelyForTotalCount(3))
-//        .build();
+//  Trigger testEmailTrigger = TriggerBuilder.newTrigger()
+//      .withIdentity("testEmailJobTrigger", "group1")
+//      .withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(13, 0))
+//      .build();
 //
-//sched.scheduleJob(printTest, printTestTrigger);
+//  sched.scheduleJob(testEmailJob, testEmailTrigger);
 
 
-println "In JobService"
-
-
-/*
 //Comment out for dev testing
 JobDetail seMaintenanceJob = JobBuilder.newJob(SEMaintenanceJob.class)
         .withIdentity("seMaintenanceJob", "group1")
@@ -94,6 +73,4 @@ Trigger seMaintenanceTrigger = TriggerBuilder.newTrigger()
         .withSchedule(CalendarIntervalScheduleBuilder.calendarIntervalSchedule().withIntervalInDays(intervalDays))
         .build()
 sched.scheduleJob(seMaintenanceJob, seMaintenanceTrigger)
-*/
 
-println "JobService - DONE"
